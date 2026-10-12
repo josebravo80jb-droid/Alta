@@ -42,13 +42,13 @@ def root_redirect(request: Request):
 @router.get("/entrada", response_class=HTMLResponse, include_in_schema=False)
 def vista_entrada(request: Request):
     """Renderiza la pantalla de elección de marca: AltaMed (médico) o AltaPet (veterinario)."""
-    return templates.TemplateResponse("entrada.html", {"request": request})
+    return templates.TemplateResponse(request, "entrada.html", {})
 
 
 @router.get("/login", response_class=HTMLResponse, include_in_schema=False)
 def vista_login(request: Request):
     """Renderiza la página de inicio de sesión."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {})
 
 
 @router.post("/login", include_in_schema=False)
@@ -64,8 +64,9 @@ def procesar_login(
     usuario = db.exec(select(Usuario).where(Usuario.email == email)).first()
     if not usuario or not usuario.activo or not verify_password(password, usuario.password_hash):
         return templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "error": "Email o contraseña incorrectos"},
+            {"error": "Email o contraseña incorrectos"},
             status_code=400,
         )
 
@@ -92,7 +93,7 @@ def logout():
 def vista_registro(request: Request, tipo: Optional[str] = "MEDICO"):
     """Renderiza la página de registro de nuevo consultorio adaptada por tipo."""
     tipo_norm = (tipo or "MEDICO").upper()
-    return templates.TemplateResponse("registro.html", {"request": request, "tipo": tipo_norm})
+    return templates.TemplateResponse(request, "registro.html", {"tipo": tipo_norm})
 
 
 @router.post("/registro", include_in_schema=False)
@@ -119,9 +120,9 @@ def procesar_registro(
     existente = db.exec(select(Usuario).where(Usuario.email == email)).first()
     if existente:
         return templates.TemplateResponse(
+            request,
             "registro.html",
             {
-                "request": request,
                 "error": "El email ya está registrado",
                 "tipo": tipo_norm,
             },
@@ -203,9 +204,9 @@ def vista_dashboard(
             self.proximas_citas = [CitaResumen(**c) for c in d["proximas_citas"]]
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "usuario": usuario,
             "resumen": _Resumen(datos_dict),
             "solicitudes": solicitudes_pendientes,
@@ -285,9 +286,9 @@ def vista_agenda(
     label = f"{lunes.strftime('%d/%m')} – {(lunes + timedelta(days=6)).strftime('%d/%m/%Y')}"
 
     return templates.TemplateResponse(
+        request,
         "agenda/semana.html",
         {
-            "request": request,
             "usuario": usuario,
             "dias": dias,
             "semana_anterior": semana_ant,
@@ -306,8 +307,9 @@ def vista_nueva_cita(
 ):
     """Renderiza el formulario de nueva cita."""
     return templates.TemplateResponse(
+        request,
         "agenda/cita_form.html",
-        {"request": request, "usuario": usuario, "cita": None, "active_page": "agenda"},
+        {"usuario": usuario, "cita": None, "active_page": "agenda"},
     )
 
 
@@ -333,8 +335,9 @@ def vista_editar_cita(
         "estado": cita.estado,
     })()
     return templates.TemplateResponse(
+        request,
         "agenda/cita_form.html",
-        {"request": request, "usuario": usuario, "cita": cita_ctx, "active_page": "agenda"},
+        {"usuario": usuario, "cita": cita_ctx, "active_page": "agenda"},
     )
 
 
@@ -350,8 +353,9 @@ def vista_pacientes(
     from app.services.pacientes import buscar_pacientes
     pacientes = buscar_pacientes(db=db, consultorio_id=usuario.consultorio_id)
     return templates.TemplateResponse(
+        request,
         "pacientes/lista.html",
-        {"request": request, "usuario": usuario, "pacientes": pacientes, "active_page": "pacientes"},
+        {"usuario": usuario, "pacientes": pacientes, "active_page": "pacientes"},
     )
 
 
@@ -365,8 +369,9 @@ def vista_nuevo_paciente(
     from app.services.pacientes import buscar_duenos
     duenos = buscar_duenos(db=db, consultorio_id=usuario.consultorio_id)
     return templates.TemplateResponse(
+        request,
         "pacientes/paciente_form.html",
-        {"request": request, "usuario": usuario, "paciente": None, "duenos": duenos, "active_page": "pacientes"},
+        {"usuario": usuario, "paciente": None, "duenos": duenos, "active_page": "pacientes"},
     )
 
 
@@ -384,9 +389,9 @@ def vista_ficha_paciente(
         return RedirectResponse(url="/pacientes", status_code=302)
 
     return templates.TemplateResponse(
+        request,
         "pacientes/ficha.html",
         {
-            "request": request,
             "usuario": usuario,
             "paciente": detalle["paciente"],
             "dueno": detalle["dueno"],
@@ -416,9 +421,11 @@ def vista_editar_paciente(
 
     duenos = buscar_duenos(db=db, consultorio_id=usuario.consultorio_id)
     return templates.TemplateResponse(
+        request,
         "pacientes/paciente_form.html",
-        {"request": request, "usuario": usuario, "paciente": paciente, "duenos": duenos, "active_page": "pacientes"},
+        {"usuario": usuario, "paciente": paciente, "duenos": duenos, "active_page": "pacientes"},
     )
+
 
 
 # ── Consultas Clínicas ────────────────────────────────────────────────────────
@@ -501,9 +508,9 @@ def vista_lista_consultas(
     ]
 
     return templates.TemplateResponse(
+        request,
         "consultas/lista.html",
         {
-            "request": request,
             "usuario": usuario,
             "consultas": consultas,
             "q": q or "",
@@ -541,9 +548,9 @@ def vista_nueva_consulta(
         ).all()
 
     return templates.TemplateResponse(
+        request,
         "consultas/form.html",
         {
-            "request": request,
             "usuario": usuario,
             "consulta": None,
             "pacientes": pacientes,
@@ -575,9 +582,9 @@ def vista_detalle_consulta(
     medico = db.get(Usuario, consulta.profesional_id)
 
     return templates.TemplateResponse(
+        request,
         "consultas/detalle.html",
         {
-            "request": request,
             "usuario": usuario,
             "consulta": consulta,
             "paciente": paciente,
@@ -615,9 +622,9 @@ def vista_editar_consulta(
         ).all()
 
     return templates.TemplateResponse(
+        request,
         "consultas/form.html",
         {
-            "request": request,
             "usuario": usuario,
             "consulta": consulta,
             "paciente": paciente,
@@ -667,9 +674,9 @@ def vista_ingresos(
         )
 
     return templates.TemplateResponse(
+        request,
         "ingresos/reporte.html",
         {
-            "request": request,
             "usuario": usuario,
             "mes_sel": mes_actual,
             "resumen": resumen,
@@ -702,9 +709,9 @@ def vista_nuevo_pago(
         ).all()
 
     return templates.TemplateResponse(
+        request,
         "pagos/pago_form.html",
         {
-            "request": request,
             "usuario": usuario,
             "pago": None,
             "pacientes": pacientes,
@@ -742,9 +749,9 @@ def vista_editar_pago(
     ).all()
 
     return templates.TemplateResponse(
+        request,
         "pagos/pago_form.html",
         {
-            "request": request,
             "usuario": usuario,
             "pago": pago,
             "pacientes": pacientes,
@@ -753,6 +760,7 @@ def vista_editar_pago(
             "active_page": "ingresos",
         },
     )
+
 
 
 # ── Configuración ─────────────────────────────────────────────────────────────
@@ -786,9 +794,9 @@ def vista_configuracion(
         ).all()
 
     return templates.TemplateResponse(
+        request,
         "configuracion/index.html",
         {
-            "request": request,
             "usuario": usuario,
             "consultorio": consultorio,
             "config": config,
@@ -822,9 +830,9 @@ def vista_vacunas_lista(
     vencidas = vacunas_vencidas(db, usuario.consultorio_id)
 
     return templates.TemplateResponse(
+        request,
         "vacunas/lista.html",
         {
-            "request": request,
             "usuario": usuario,
             "consultorio": consultorio,
             "vacunas": vacunas,
@@ -867,9 +875,9 @@ def vista_vacunas_calendario(
     pendientes = vacunas_pendientes(paciente, vacunas_aplicadas)
 
     return templates.TemplateResponse(
+        request,
         "vacunas/calendario.html",
         {
-            "request": request,
             "usuario": usuario,
             "consultorio": consultorio,
             "paciente": paciente,
@@ -903,9 +911,9 @@ def vista_vacuna_form(
     vacunas_sugeridas = esp_info.get("vacunas_obligatorias", []) if esp_info else []
 
     return templates.TemplateResponse(
+        request,
         "vacunas/form.html",
         {
-            "request": request,
             "usuario": usuario,
             "consultorio": consultorio,
             "paciente": paciente,
@@ -930,8 +938,9 @@ def vista_agenda_publica(slug: str, request: Request, db: Session = Depends(get_
         )
 
     return templates.TemplateResponse(
+        request,
         "publico/agenda.html",
-        {"request": request, "consultorio": consultorio},
+        {"consultorio": consultorio},
     )
 
 
@@ -946,8 +955,9 @@ def vista_solicitar_publico(slug: str, request: Request, db: Session = Depends(g
         )
 
     return templates.TemplateResponse(
+        request,
         "publico/solicitud.html",
-        {"request": request, "consultorio": consultorio},
+        {"consultorio": consultorio},
     )
 
 
@@ -992,9 +1002,9 @@ def vista_exito_publico(
             enlace_wa = ""
 
     return templates.TemplateResponse(
+        request,
         "publico/exito.html",
         {
-            "request": request,
             "consultorio": consultorio,
             "cita": cita,
             "paciente": paciente,
@@ -1013,7 +1023,8 @@ def vista_solicitud_exito_publico(slug: str, request: Request, db: Session = Dep
         return HTMLResponse("<h2>Consultorio no encontrado</h2>", status_code=404)
 
     return templates.TemplateResponse(
+        request,
         "publico/solicitud_exito.html",
-        {"request": request, "consultorio": consultorio},
+        {"consultorio": consultorio},
     )
 

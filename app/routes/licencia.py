@@ -41,9 +41,9 @@ def vista_licencia(
     info = info_licencia(db)
     hw = obtener_hardware_id()
     return templates.TemplateResponse(
+        request,
         "licencia/estado.html",
         {
-            "request": request,
             "usuario": usuario,
             "info": info,
             "hardware_id": hw,

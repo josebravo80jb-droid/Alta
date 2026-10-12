@@ -37,9 +37,9 @@ def vista_reportes(
     consultorio = db.get(Consultorio, usuario.consultorio_id)
 
     return templates.TemplateResponse(
+        request,
         "reportes/index.html",
         {
-            "request": request,
             "usuario": usuario,
             "consultorio": consultorio,
             "reporte": reporte,
