@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}{% if consulta %}Editar Consulta{% else %}Nueva Consulta Médica{% endif %} — Alta{% endblock %}
+
+{% block content %}
+<div style="max-width: 760px; margin: 0 auto;">
+  <div style="margin-bottom: 1.5rem;">
+    <a href="{% if paciente %}/pacientes/{{ paciente.id }}{% else %}/pacientes{% endif %}" style="text-decoration:none; font-size:0.9rem;">
+      ← Volver al paciente
+    </a>
+  </div>
+
+  <article>
+    <header>
+      <h2 style="margin:0;">{% if consulta %}Editar Consulta Clínica{% else %}Registrar Nueva Consulta{% endif %}</h2>
+      <p style="margin:0.25rem 0 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+        Atención médica y evolución del paciente
+      </p>
+    </header>
+
+    <form id="form-consulta" onsubmit="guardarConsulta(event)">
+      <!-- Paciente -->
+      <label for="paciente_id">
+        Paciente *
+        <select id="paciente_id" name="paciente_id" required {% if consulta %}disabled{% endif %} onchange="cargarCitasPaciente(this.value)">
+          <option value="">-- Seleccionar paciente --</option>
+          {% for p in pacientes %}
+            <option value="{{ p.id }}" {% if (paciente_id_sel and paciente_id_sel == p.id) or (consulta and consulta.paciente_id == p.id) %}selected{% endif %}>
+              {{ p.nombre }} {% if p.cedula %}(Cédula: {{ p.cedula }}){% endif %} [{{ p.tipo }}]
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <!-- Cita vinculada opcional -->
+      <label for="cita_id">
+        Vincular a Cita Agendada (Opcional)
+        <select id="cita_id" name="cita_id">
+          <option value="">-- Ninguna / Consulta espontánea --</option>
+          {% for c in citas %}
+            <option value="{{ c.id }}" {% if consulta and consulta.cita_id == c.id %}selected{% endif %}>
+              {{ c.fecha_hora.strftime('%d/%m/%Y %H:%M') }} — {{ c.motivo or 'Consulta general' }} ({{ c.estado }})
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <!-- Motivo -->
+      <label for="motivo">
+        Motivo de consulta *
+        <input type="text" id="motivo" name="motivo" placeholder="Ej: Control de rutina, dolor abdominal..." required
+               value="{{ consulta.motivo if consulta else '' }}" />
+      </label>
+
+      <!-- Nota clínica (Obligatoria) -->
+      <label for="nota">
+        Evolución y Nota Clínica *
+        <textarea id="nota" name="nota" rows="4" placeholder="Anamnesis, hallazgos físicos, examen clínico..." required>{{ consulta.nota if consulta else '' }}</textarea>
+      </label>
+
+      <!-- Diagnóstico -->
+      <label for="diagnostico">
+        Diagnóstico presuntivo o definitivo
+        <textarea id="diagnostico" name="diagnostico" rows="2" placeholder="Diagnóstico...">{{ consulta.diagnostico if (consulta and consulta.diagnostico) else '' }}</textarea>
+      </label>
+
+      <!-- Indicaciones -->
+      <label for="indicaciones">
+        Indicaciones / Receta / Tratamiento
+        <textarea id="indicaciones" name="indicaciones" rows="3" placeholder="Plan terapéutico, medicamentos, dosis...">{{ consulta.indicaciones if (consulta and consulta.indicaciones) else '' }}</textarea>
+      </label>
+
+      <!-- Calculador de Dosis Veterinarias (Solo AltaPet / Veterinario) -->
+      {% if consultorio and consultorio.tipo == 'VETERINARIO' %}
+      <div style="background:var(--pico-card-background-color); border:1px solid var(--pico-muted-border-color); border-radius:8px; padding:1rem; margin-bottom:1.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+          <h4 style="margin:0; font-size:0.95rem;">💊 Asistente Orientativo de Dosis (AltaPet)</h4>
+          <span style="font-size:0.75rem; color:var(--pico-muted-color);">Peso paciente: <strong id="peso-ref">{{ paciente.peso_kg if paciente and paciente.peso_kg else 0 }}</strong> kg</span>
+        </div>
+
+        <div class="grid" style="margin-bottom:0.75rem;">
+          <label style="margin-bottom:0;">
+            Medicamento
+            <select id="calc-medicamento" onchange="calcularDosisVet()">
+              <option value="">-- Seleccionar fármaco --</option>
+            </select>
+          </label>
+          <label style="margin-bottom:0;">
+            Concentración (mg/ml) opcional
+            <input type="number" step="0.1" id="calc-concentracion" placeholder="Ej: 50" oninput="calcularDosisVet()" style="margin-bottom:0;" />
+          </label>
+        </div>
+
+        <div id="resultado-dosis" style="font-size:0.85rem; padding:0.5rem 0.75rem; background:rgba(59,130,246,0.08); border-radius:4px; display:none;">
+          <div id="texto-dosis" style="font-weight:600; color:var(--pico-primary);"></div>
+          <button type="button" class="outline" style="font-size:0.75rem; padding:0.2rem 0.5rem; margin-top:0.4rem; margin-bottom:0;" onclick="copiarDosisAIndicaciones()">
+            Copiar a Indicaciones
+          </button>
+        </div>
+
+        <blockquote style="margin:0.75rem 0 0; padding:0.5rem 0.75rem; border-left:3px solid #f59e0b; background:rgba(245,158,11,0.08); font-size:0.78rem;">
+          ⚠️ <strong>Advertencia legal:</strong> Cálculo estrictamente orientativo basado en peso corporal. El médico veterinario debe validar y firmar antes de prescribir.
+        </blockquote>
+      </div>
+      {% endif %}
+
+      <!-- Próxima cita -->
+      <label for="proxima_cita">
+        Próximo control sugerido (Opcional)
+        <input type="datetime-local" id="proxima_cita" name="proxima_cita"
+               value="{{ consulta.proxima_cita.strftime('%Y-%m-%dT%H:%M') if (consulta and consulta.proxima_cita) else '' }}" />
+      </label>
+
+      <!-- Botones -->
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+        <a href="{% if paciente %}/pacientes/{{ paciente.id }}{% else %}/pacientes{% endif %}" role="button" class="secondary outline">Cancelar</a>
+        <button type="submit" id="btn-guardar">
+          {% if consulta %}Guardar Cambios{% else %}Guardar Consulta{% endif %}
+        </button>
+      </div>
+    </form>
+  </article>
+</div>
+
+<script>
+  let ultimaDosisTexto = "";
+
+  async function cargarMedicamentos() {
+    const sel = document.getElementById('calc-medicamento');
+    if (!sel) return;
+    try {
+      const res = await fetch('/api/veterinaria/medicamentos');
+      if (res.ok) {
+        const meds = await res.json();
+        meds.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+          sel.appendChild(opt);
+        });
+      }
+    } catch(e) {}
+  }
+
+  async function calcularDosisVet() {
+    const med = document.getElementById('calc-medicamento').value;
+    const peso = parseFloat(document.getElementById('peso-ref')?.textContent) || 0;
+    const conc = parseFloat(document.getElementById('calc-concentracion')?.value) || null;
+    const resDiv = document.getElementById('resultado-dosis');
+    const txtDiv = document.getElementById('texto-dosis');
+
+    if (!med || peso <= 0) {
+      if (resDiv) resDiv.style.display = 'none';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/veterinaria/dosis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicamento: med, peso_kg: peso, concentracion_mg_ml: conc }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        let msg = `${d.medicamento.toUpperCase()}: ${d.dosis_mg} mg (${d.via}, ${d.frecuencia})`;
+        if (d.volumen_ml) {
+          msg += ` → Volumen: ${d.volumen_ml} ml`;
+        }
+        ultimaDosisTexto = msg;
+        txtDiv.textContent = msg;
+        resDiv.style.display = 'block';
+      }
+    } catch(e) {}
+  }
+
+  function copiarDosisAIndicaciones() {
+    const txt = document.getElementById('indicaciones');
+    if (txt && ultimaDosisTexto) {
+      txt.value = (txt.value ? txt.value + '\n' : '') + ultimaDosisTexto;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', cargarMedicamentos);
+  cargarMedicamentos();
+
+  async function cargarCitasPaciente(pacienteId) {
+    if (!pacienteId) return;
+    // Si se desea recargar las citas dinámicamente
+  }
+
+  async function guardarConsulta(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar');
+    btn.disabled = true;
+
+    const consultaId = "{{ consulta.id if consulta else '' }}";
+    const pacienteIdSelect = document.getElementById('paciente_id');
+    const pacienteId = pacienteIdSelect ? parseInt(pacienteIdSelect.value, 10) : parseInt("{{ paciente.id if paciente else '' }}", 10);
+
+    const citaVal = document.getElementById('cita_id').value;
+    const proxVal = document.getElementById('proxima_cita').value;
+
+    const data = {
+      paciente_id: pacienteId,
+      cita_id: citaVal ? parseInt(citaVal, 10) : null,
+      motivo: document.getElementById('motivo').value.trim(),
+      nota: document.getElementById('nota').value.trim(),
+      diagnostico: document.getElementById('diagnostico').value.trim() || null,
+      indicaciones: document.getElementById('indicaciones').value.trim() || "",
+      proxima_cita: proxVal ? proxVal : null,
+    };
+
+    const url = consultaId ? `/api/consultas/${consultaId}` : '/api/consultas';
+    const method = consultaId ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        const c = await res.json();
+        window.location.href = `/consultas/${c.id}`;
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'No se pudo guardar la consulta'));
+        btn.disabled = false;
+      }
+    } catch(err) {
+      alert('Error de red: ' + err.message);
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}

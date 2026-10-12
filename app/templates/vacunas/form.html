@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Registrar Vacuna — {{ paciente.nombre }} — AltaPet{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+
+  <div style="margin-bottom: 1.5rem;">
+    <a href="/vacunas/{{ paciente.id }}" style="text-decoration:none; font-size:0.9rem;">
+      ← Cancelar y volver al calendario
+    </a>
+  </div>
+
+  <article>
+    <header>
+      <h2 style="margin:0;">Registrar Vacuna Administrada</h2>
+      <p style="margin:0.25rem 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+        Mascota: <strong>{{ paciente.nombre }}</strong> ({{ paciente.especie or 'Mascota' }})
+      </p>
+    </header>
+
+    <form id="form-vacuna" onsubmit="guardarVacuna(event)">
+      <!-- Fecha de Aplicación -->
+      <label for="fecha_aplicacion">
+        Fecha de Aplicación *
+        <input type="date" id="fecha_aplicacion" name="fecha_aplicacion" value="{{ hoy.strftime('%Y-%m-%d') }}" required />
+      </label>
+
+      <!-- Tipo de Vacuna -->
+      <label for="tipo">
+        Tipo de Vacuna *
+        <input list="lista-vacunas" id="tipo" name="tipo" placeholder="Ej: rabia, moquillo..." required />
+        <datalist id="lista-vacunas">
+          {% for vac in vacunas_sugeridas %}
+          <option value="{{ vac }}"></option>
+          {% endfor %}
+        </datalist>
+      </label>
+
+      <!-- Lote y Laboratorio -->
+      <div class="grid">
+        <label for="lote">
+          Número de Lote
+          <input type="text" id="lote" name="lote" placeholder="Opcional" />
+        </label>
+        <label for="laboratorio">
+          Laboratorio / Fabricante
+          <input type="text" id="laboratorio" name="laboratorio" placeholder="Opcional" />
+        </label>
+      </div>
+
+      <!-- Próxima Dosis -->
+      <label for="proxima_dosis">
+        Próxima Dosis / Refuerzo (Auto-calculada si se deja vacía)
+        <input type="date" id="proxima_dosis" name="proxima_dosis" />
+        <small style="color:var(--pico-muted-color);">Dejar en blanco para calcular automáticamente según el calendario estándar.</small>
+      </label>
+
+      <!-- Notas -->
+      <label for="notas">
+        Observaciones / Reacciones
+        <textarea id="notas" name="notas" rows="2" placeholder="Tolerancia, sitio de punción, etc."></textarea>
+      </label>
+
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+        <a href="/vacunas/{{ paciente.id }}" role="button" class="secondary outline">Cancelar</a>
+        <button type="submit" id="btn-guardar">Guardar Vacuna</button>
+      </div>
+    </form>
+  </article>
+
+</div>
+
+<script>
+  async function guardarVacuna(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar');
+    btn.disabled = true;
+
+    const data = {
+      paciente_id: {{ paciente.id }},
+      fecha_aplicacion: document.getElementById('fecha_aplicacion').value,
+      tipo: document.getElementById('tipo').value.trim(),
+      lote: document.getElementById('lote').value.trim() || null,
+      laboratorio: document.getElementById('laboratorio').value.trim() || null,
+      proxima_dosis: document.getElementById('proxima_dosis').value || null,
+      notas: document.getElementById('notas').value.trim() || null,
+    };
+
+    try {
+      const res = await fetch('/api/veterinaria/vacunas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        window.location.href = '/vacunas/{{ paciente.id }}';
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'No se pudo guardar la vacuna'));
+        btn.disabled = false;
+      }
+    } catch(err) {
+      alert('Error de red: ' + err.message);
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}

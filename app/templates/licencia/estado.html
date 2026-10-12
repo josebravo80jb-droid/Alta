@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}Licencia{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 680px; margin: 2rem auto;">
+
+  <h1 style="margin-bottom: 0.3rem;">🔑 Licencia de Alta</h1>
+  <p style="color: var(--pico-muted-color); margin-top: 0;">Gestión de activación y estado del software</p>
+
+  <!-- ═══════════════════════════════════
+       ESTADO ACTUAL
+  ══════════════════════════════════════ -->
+  <article style="margin-bottom: 1.5rem;">
+    {% set estado = info.estado %}
+
+    {% if estado == "founder" %}
+      <div class="estado-badge estado-founder">⭐ Acceso Founder activo — Sin licencia requerida</div>
+      <p style="margin-top: .8rem; color: var(--pico-muted-color);">
+        Este software es tuyo. Acceso permanente, sin restricciones, sin fecha de vencimiento.
+      </p>
+
+    {% elif estado == "trial" %}
+      <div class="estado-badge estado-trial">
+        🕐 Período de prueba — {{ info.dias_restantes_trial }} día{% if info.dias_restantes_trial != 1 %}s{% endif %} restante{% if info.dias_restantes_trial != 1 %}s{% endif %}
+      </div>
+      <p style="margin-top: .8rem; color: var(--pico-muted-color);">
+        Activa una licencia para continuar usando Alta sin interrupciones.
+      </p>
+
+    {% elif estado == "activa" %}
+      <div class="estado-badge estado-activa">
+        ✅ Licencia activa — vence el {{ info.activa_hasta[:10] if info.activa_hasta else "—" }}
+      </div>
+      <p style="margin-top: .8rem; color: var(--pico-muted-color);">
+        {{ info.dias_restantes_licencia }} día{% if info.dias_restantes_licencia != 1 %}s{% endif %} restantes.
+        La renovación se cobra al inicio del siguiente mes.
+      </p>
+
+    {% elif estado == "gracia" %}
+      <div class="estado-badge estado-gracia">
+        ⚠️ Período de gracia — renueva pronto
+      </div>
+      <p style="margin-top: .8rem;">
+        Tu licencia venció. Tienes {{ info.dias_restantes_licencia }} días de gracia antes de pasar a solo lectura total.
+        <a href="#activar" role="button" class="outline" style="display:inline-block; margin-top:.5rem; padding:.3rem 1rem; font-size:.85rem;">Renovar ahora</a>
+      </p>
+
+    {% elif estado == "expirada" %}
+      <div class="estado-badge estado-expirada">
+        🔴 Licencia expirada — solo lectura
+      </div>
+      <p style="margin-top: .8rem;">
+        No puedes registrar ni modificar datos hasta activar una licencia.
+        <a href="#activar" role="button" style="display:inline-block; margin-top:.5rem; padding:.3rem 1rem; font-size:.85rem;">Activar</a>
+      </p>
+
+    {% elif estado == "bloqueada" %}
+      <div class="estado-badge estado-bloqueada">
+        🚫 Hardware no reconocido
+      </div>
+      <p style="margin-top: .8rem;">
+        Esta licencia fue activada en otra máquina. Contacta al soporte para transferirla.
+      </p>
+    {% endif %}
+  </article>
+
+  <!-- ═══════════════════════════════════
+       SECCIÓN FOUNDER
+  ══════════════════════════════════════ -->
+  {% if estado == "founder" %}
+  <article>
+    <h3>🛠️ Herramientas Founder</h3>
+    <p style="font-size: .85rem; color: var(--pico-muted-color);">
+      Registra este hardware para mantener acceso founder aunque cambies de email.
+    </p>
+    <button id="btn-registrar-hw" class="outline" onclick="registrarHardware()">
+      Registrar hardware actual como Founder
+    </button>
+    <div id="msg-hw" style="margin-top:.5rem; font-size:.85rem;"></div>
+  </article>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════
+       ACTIVAR / RENOVAR (no-founder)
+  ══════════════════════════════════════ -->
+  {% if estado != "founder" %}
+  <article id="activar">
+    <h3>🔐 Activar licencia</h3>
+
+    {% if info.monto_prorrateado is not none and estado in ["trial","expirada","gracia"] %}
+    <div class="prorrateo-box">
+      <span class="prorrateo-label">Cobro estimado hoy</span>
+      <span class="prorrateo-monto">${{ "%.2f"|format(info.monto_prorrateado) }}</span>
+      <span class="prorrateo-desc">
+        Precio mensual: ${{ "%.2f"|format(info.precio_mensual) }} —
+        prorrateo por días restantes del mes
+      </span>
+    </div>
+    {% endif %}
+
+    <form id="form-activar" onsubmit="activarLicencia(event)">
+      <label for="input-clave">Clave de activación</label>
+      <input
+        id="input-clave"
+        name="clave"
+        type="text"
+        placeholder="ALTA-XXXX-XXXX-XXXX-XXXX"
+        pattern="ALTA-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}"
+        maxlength="24"
+        autocomplete="off"
+        spellcheck="false"
+        style="font-family: monospace; letter-spacing: .05em; text-transform: uppercase;"
+        oninput="this.value = this.value.toUpperCase()"
+      />
+      <div id="msg-activar" style="margin-bottom:.5rem; font-size:.85rem;"></div>
+      <button type="submit" id="btn-activar">Activar</button>
+    </form>
+
+    {% if estado in ["activa", "gracia"] %}
+    <hr />
+    <h4 style="margin-bottom:.5rem;">🔄 Renovar para el mes siguiente</h4>
+    <p style="font-size:.85rem; color: var(--pico-muted-color);">
+      Precio mensual completo: ${{ "%.2f"|format(info.precio_mensual) }}
+    </p>
+    <button id="btn-renovar" class="outline" onclick="renovarLicencia()">Renovar mes</button>
+    <div id="msg-renovar" style="margin-top:.5rem; font-size:.85rem;"></div>
+    {% endif %}
+  </article>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════
+       HARDWARE ID
+  ══════════════════════════════════════ -->
+  <article>
+    <h3>🖥️ Información de hardware</h3>
+    <p style="font-size:.85rem; color: var(--pico-muted-color);">
+      Necesario para verificar tu licencia. Compártelo con soporte si necesitas transferir.
+    </p>
+    <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+      <code id="hw-id" style="font-size:.8rem; background: var(--pico-code-background-color); padding:.4rem .8rem; border-radius:.4rem; flex:1;">
+        {{ hardware_id }}
+      </code>
+      <button class="outline" style="padding:.3rem .8rem; font-size:.8rem; margin-bottom:0;" onclick="copiarHW()">
+        📋 Copiar
+      </button>
+    </div>
+  </article>
+
+</div>
+
+<!-- ─── Estilos locales ─── -->
+<style>
+  .estado-badge {
+    display: inline-block;
+    padding: .5rem 1rem;
+    border-radius: .5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .estado-founder  { background: linear-gradient(90deg,#f39c12,#e74c3c); color:#fff; }
+  .estado-trial    { background: #2980b9; color:#fff; }
+  .estado-activa   { background: #27ae60; color:#fff; }
+  .estado-gracia   { background: #f39c12; color:#fff; }
+  .estado-expirada { background: #e74c3c; color:#fff; }
+  .estado-bloqueada{ background: #7f8c8d; color:#fff; }
+
+  .prorrateo-box {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: .5rem;
+    padding: .8rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+  }
+  .prorrateo-label { font-size: .75rem; color: var(--pico-muted-color); }
+  .prorrateo-monto { font-size: 2rem; font-weight: 700; color: var(--pico-primary); line-height: 1; }
+  .prorrateo-desc  { font-size: .75rem; color: var(--pico-muted-color); }
+</style>
+
+<!-- ─── Scripts ─── -->
+<script>
+  function copiarHW() {
+    const hw = document.getElementById('hw-id').textContent.trim();
+    navigator.clipboard.writeText(hw).then(() => alert('Hardware ID copiado: ' + hw));
+  }
+
+  async function activarLicencia(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-activar');
+    const msg = document.getElementById('msg-activar');
+    const clave = document.getElementById('input-clave').value.trim().toUpperCase();
+    btn.disabled = true;
+    btn.textContent = 'Activando…';
+    try {
+      const resp = await fetch('/api/licencia/activar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({clave})
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        msg.style.color = '#27ae60';
+        msg.textContent = '✅ ' + data.mensaje;
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        msg.style.color = '#e74c3c';
+        msg.textContent = '❌ ' + data.mensaje;
+        btn.disabled = false;
+        btn.textContent = 'Activar';
+      }
+    } catch {
+      msg.textContent = 'Error de conexión';
+      btn.disabled = false;
+      btn.textContent = 'Activar';
+    }
+  }
+
+  async function renovarLicencia() {
+    const btn = document.getElementById('btn-renovar');
+    const msg = document.getElementById('msg-renovar');
+    btn.disabled = true;
+    try {
+      const resp = await fetch('/api/licencia/renovar', {method: 'POST'});
+      const data = await resp.json();
+      if (data.ok) {
+        msg.style.color = '#27ae60';
+        msg.textContent = '✅ ' + data.mensaje;
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        msg.style.color = '#e74c3c';
+        msg.textContent = '❌ ' + data.mensaje;
+        btn.disabled = false;
+      }
+    } catch {
+      msg.textContent = 'Error';
+      btn.disabled = false;
+    }
+  }
+
+  async function registrarHardware() {
+    const btn = document.getElementById('btn-registrar-hw');
+    const msg = document.getElementById('msg-hw');
+    btn.disabled = true;
+    try {
+      const resp = await fetch('/api/licencia/registrar-founder', {method: 'POST'});
+      const data = await resp.json();
+      msg.style.color = data.ok ? '#27ae60' : '#e74c3c';
+      msg.textContent = data.mensaje;
+    } catch {
+      msg.textContent = 'Error';
+    }
+    btn.disabled = false;
+  }
+</script>
+{% endblock %}

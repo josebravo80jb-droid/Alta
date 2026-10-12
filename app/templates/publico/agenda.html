@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agendar Cita — {{ consultorio.nombre }}</title>
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <style>
+    :root {
+      --primary: #0284c7;
+    }
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .public-container {
+      max-width: 680px;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
+      width: 100%;
+      flex: 1;
+    }
+    .header-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .header-card h1 {
+      margin-bottom: 0.25rem;
+      font-size: 1.6rem;
+      color: #0f172a;
+    }
+    .badge-especialidad {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      background: #e0f2fe;
+      color: #0369a1;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .bio-text {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin: 0.5rem 0 0 0;
+    }
+    .dias-scroll {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.75rem;
+      margin-bottom: 1.25rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .dia-btn {
+      flex: 0 0 auto;
+      padding: 0.6rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #334155;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.85rem;
+      line-height: 1.2;
+      transition: all 0.15s ease;
+      min-width: 72px;
+    }
+    .dia-btn:hover {
+      border-color: #0284c7;
+      color: #0284c7;
+    }
+    .dia-btn.activo {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: white;
+      font-weight: 600;
+    }
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+    .slot-btn {
+      padding: 0.6rem 0.4rem;
+      border-radius: 6px;
+      border: 1px solid #93c5fd;
+      background: white;
+      color: #0369a1;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.15s;
+    }
+    .slot-btn:hover {
+      background: #e0f2fe;
+    }
+    .slot-btn.seleccionado {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: white;
+    }
+    .form-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+    }
+    .footer-note {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      margin-top: 2rem;
+      padding-bottom: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="public-container">
+
+  <!-- Header Consultorio -->
+  <div class="header-card">
+    <span class="badge-especialidad">{{ "🐾 Veterinaria" if consultorio.tipo == "VETERINARIO" else "🏥 Consultorio Médico" }}</span>
+    <h1>{{ consultorio.nombre }}</h1>
+    {% if consultorio.bio_publica %}
+    <p class="bio-text">{{ consultorio.bio_publica }}</p>
+    {% endif %}
+    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.4rem; margin-bottom: 0;">
+      📍 {{ consultorio.direccion }} · ⏱️ {{ consultorio.duracion_cita_publica or 30 }} min por cita
+    </p>
+  </div>
+
+  <!-- Selector de Fecha -->
+  <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">1. Selecciona un día</h3>
+  <div class="dias-scroll" id="dias-contenedor">
+    <!-- Renderizado por JS -->
+  </div>
+
+  <!-- Slots del Día -->
+  <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">2. Horarios disponibles</h3>
+  <div id="slots-contenedor" class="slots-grid">
+    <!-- Renderizado por JS -->
+  </div>
+
+  <div id="sin-disponibilidad-global-msg" style="display:none; text-align:center; padding:1.5rem; background:white; border-radius:8px; margin-bottom:1.5rem;">
+    <p style="color:#64748b; margin-bottom:0.75rem;">No hay horarios disponibles. Solicita uno libre.</p>
+    <a href="/agenda/{{ consultorio.slug }}/solicitar" role="button" class="outline" style="font-size:0.9rem;">
+      Solicitar uno libre →
+    </a>
+  </div>
+
+  <div id="sin-slots-msg" style="display:none; text-align:center; padding:1.5rem; background:white; border-radius:8px; margin-bottom:1.5rem;">
+    <p style="color:#64748b; margin-bottom:0.75rem;">Sin disponibilidad</p>
+    <a href="/agenda/{{ consultorio.slug }}/solicitar" role="button" class="outline" style="font-size:0.9rem;">
+      ¿No encuentras horario? Solicitar uno libre →
+    </a>
+  </div>
+
+  <!-- Formulario Inline de Reserva -->
+  <div id="formulario-reserva" class="form-card" style="display:none;">
+    <h3 style="font-size: 1.15rem; margin-bottom: 0.25rem;">3. Completa tus datos</h3>
+    <p id="resumen-slot" style="color: #0284c7; font-weight: 600; margin-bottom: 1rem; font-size: 0.95rem;"></p>
+
+    <form id="form-cita" onsubmit="confirmarReserva(event)">
+      <label for="nombre">
+        Nombre y apellido
+        <input type="text" id="nombre" name="nombre" required minlength="2" maxlength="100" placeholder="Ej. Carlos Pérez">
+      </label>
+
+      <label for="telefono">
+        Teléfono con WhatsApp
+        <input type="tel" id="telefono" name="telefono" required minlength="7" maxlength="20" placeholder="Ej. 04141234567">
+      </label>
+
+      <label for="motivo">
+        Motivo de la consulta
+        <textarea id="motivo" name="motivo" required minlength="3" maxlength="500" rows="2" placeholder="Ej. Chequeo general, dolor de cabeza..."></textarea>
+      </label>
+
+      <div id="error-msg" style="display:none; color:#dc2626; margin-bottom:1rem; font-size:0.9rem;"></div>
+
+      <button type="submit" id="btn-submit" style="width:100%; font-size:1rem; font-weight:600; padding:0.75rem;">
+        Confirmar Cita →
+      </button>
+    </form>
+  </div>
+
+  <div style="text-align: center; margin-top: 1rem;">
+    <a href="/agenda/{{ consultorio.slug }}/solicitar" style="color: #64748b; font-size: 0.9rem; text-decoration: underline;">
+      ¿No encuentras un horario conveniente? Solicita uno libre aquí
+    </a>
+  </div>
+
+  <div class="footer-note">
+    Sistema de agenda por <strong>Alta</strong>
+  </div>
+
+</div>
+
+<script>
+  const SLUG = "{{ consultorio.slug }}";
+  let slotsData = {};
+  let diaSeleccionado = null;
+  let horaSeleccionada = null;
+
+  const NOMBRES_DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const NOMBRES_MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+  async function cargarDisponibles() {
+    try {
+      const res = await fetch(`/api/agenda-publica/${SLUG}/disponibles`);
+      if (!res.ok) throw new Error("No se pudo cargar disponibilidad");
+      const data = await res.json();
+      slotsData = data.slots || {};
+      renderizarDias();
+    } catch(e) {
+      document.getElementById("slots-contenedor").innerHTML = `<p style="color:#dc2626;">Error al cargar horarios. Intente más tarde.</p>`;
+    }
+  }
+
+  function renderizarDias() {
+    const contenedor = document.getElementById("dias-contenedor");
+    contenedor.innerHTML = "";
+    const fechas = Object.keys(slotsData);
+
+    const hayDispo = fechas.some(f => (slotsData[f] || []).length > 0);
+    const gMsg = document.getElementById("sin-disponibilidad-global-msg");
+    if (gMsg) gMsg.style.display = (fechas.length === 0 || !hayDispo) ? "block" : "none";
+    if (fechas.length === 0) return;
+
+    fechas.forEach((fechaStr, idx) => {
+      // fechaStr es YYYY-MM-DD
+      const partes = fechaStr.split("-");
+      const fechaObj = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      const diaSemana = NOMBRES_DIAS[fechaObj.getDay()];
+      const diaNum = fechaObj.getDate();
+      const mesNombre = NOMBRES_MESES[fechaObj.getMonth()];
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `dia-btn ${idx === 0 ? "activo" : ""}`;
+      btn.innerHTML = `<span style="font-weight:600;">${diaSemana}</span><br><span style="font-size:1.1rem; font-weight:700;">${diaNum}</span><br><span style="font-size:0.75rem; color:inherit;">${mesNombre}</span>`;
+      btn.onclick = () => seleccionarDia(fechaStr, btn);
+      contenedor.appendChild(btn);
+
+      if (idx === 0) {
+        seleccionarDia(fechaStr, btn);
+      }
+    });
+  }
+
+  function seleccionarDia(fechaStr, btnElement) {
+    diaSeleccionado = fechaStr;
+    document.querySelectorAll(".dia-btn").forEach(b => b.classList.remove("activo"));
+    if (btnElement) btnElement.classList.add("activo");
+
+    // Limpiar selección de hora
+    horaSeleccionada = null;
+    document.getElementById("formulario-reserva").style.display = "none";
+
+    renderizarSlots();
+  }
+
+  function renderizarSlots() {
+    const contenedor = document.getElementById("slots-contenedor");
+    const sinSlots = document.getElementById("sin-slots-msg");
+    contenedor.innerHTML = "";
+
+    const slots = slotsData[diaSeleccionado] || [];
+    if (slots.length === 0) {
+      sinSlots.style.display = "block";
+      return;
+    }
+    sinSlots.style.display = "none";
+
+    slots.forEach(hora => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `slot-btn ${horaSeleccionada === hora ? "seleccionado" : ""}`;
+      btn.textContent = hora;
+      btn.onclick = () => seleccionarSlot(hora, btn);
+      contenedor.appendChild(btn);
+    });
+  }
+
+  function seleccionarSlot(hora, btnElement) {
+    horaSeleccionada = hora;
+    document.querySelectorAll(".slot-btn").forEach(b => b.classList.remove("seleccionado"));
+    btnElement.classList.add("seleccionado");
+
+    const partes = diaSeleccionado.split("-");
+    const resumen = `📅 Fecha: ${partes[2]}/${partes[1]}/${partes[0]} · ⏰ Hora: ${hora}`;
+    document.getElementById("resumen-slot").textContent = resumen;
+
+    const form = document.getElementById("formulario-reserva");
+    form.style.display = "block";
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function confirmarReserva(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-submit");
+    const err = document.getElementById("error-msg");
+    err.style.display = "none";
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+
+    const payload = {
+      nombre: document.getElementById("nombre").value.trim(),
+      telefono: document.getElementById("telefono").value.trim(),
+      motivo: document.getElementById("motivo").value.trim(),
+      fecha: diaSeleccionado,
+      hora: horaSeleccionada,
+    };
+
+    try {
+      const res = await fetch(`/api/agenda-publica/${SLUG}/reservar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "No se pudo reservar la cita.");
+      }
+
+      // Redirigir a pantalla de éxito
+      window.location.href = `/agenda/${SLUG}/exito/${data.cita_id}?wa=${encodeURIComponent(data.enlace_whatsapp || '')}&fecha=${encodeURIComponent(data.fecha)}&hora=${encodeURIComponent(data.hora)}`;
+    } catch(error) {
+      err.textContent = error.message;
+      err.style.display = "block";
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", cargarDisponibles);
+</script>
+
+</body>
+</html>

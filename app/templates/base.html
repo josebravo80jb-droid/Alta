@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>{% block title %}Alta{% endblock %} — Alta</title>
+  <!-- Aplicar tema guardado ANTES del CSS para evitar flash -->
+  <script>
+    (function() {
+      const tema = localStorage.getItem('alta-tema') || 'light';
+      document.documentElement.setAttribute('data-theme', tema);
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/css/pico.min.css" />
+  <style>
+    /* Layout: sidebar fijo + contenido principal */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--pico-background-color);
+      color: var(--pico-color);
+    }
+
+    .app-shell {
+      display: flex;
+      flex: 1;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background-color: var(--pico-card-background-color);
+      border-right: 1px solid var(--pico-muted-border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 0;
+    }
+
+    .sidebar-brand {
+      padding: 0 1.25rem 1.5rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--pico-primary);
+      text-decoration: none;
+    }
+
+    .sidebar nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 1.25rem;
+      color: var(--pico-color);
+      text-decoration: none;
+      border-radius: 0;
+      font-size: 0.95rem;
+      transition: background 0.15s;
+    }
+
+    .sidebar nav a:hover,
+    .sidebar nav a.active {
+      background: var(--pico-primary-focus);
+      color: var(--pico-primary);
+    }
+
+    /* ── Main area ── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1rem;
+      padding: 0.75rem 2rem;
+      border-bottom: 1px solid var(--pico-muted-border-color);
+      background-color: var(--pico-card-background-color);
+    }
+
+    .topbar .user-info {
+      font-size: 0.9rem;
+      color: var(--pico-muted-color);
+    }
+
+    .topbar .user-info strong { color: var(--pico-color); }
+
+    .topbar a.logout {
+      font-size: 0.85rem;
+      color: var(--pico-del-color);
+      text-decoration: none;
+    }
+
+    /* ── Botón tema ── */
+    #btn-tema {
+      padding: 4px 12px;
+      font-size: 14px;
+      margin-bottom: 0;
+      line-height: 1;
+    }
+
+    /* ── Page content ── */
+    .page-content {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    /* ── Estados de cita (colores semánticos, funcionan en ambos temas) ── */
+    .cita-pendiente  { border-left: 4px solid #6b7280; }
+    .cita-confirmada { border-left: 4px solid #3b82f6; }
+    .cita-completada { border-left: 4px solid #10b981; }
+    .cita-no_show   { border-left: 4px solid #ef4444; }
+    .cita-cancelada { border-left: 4px solid #4b5563; opacity: 0.6; }
+
+    /* ── Banner de licencia ── */
+    .licencia-banner {
+      padding: .5rem 1.5rem;
+      font-size: .85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+    }
+    .licencia-banner-warn  { background: #f39c12; color: #fff; }
+    .licencia-banner-error { background: #e74c3c; color: #fff; }
+  </style>
+
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Sidebar (solo si hay usuario autenticado) -->
+  {% if usuario %}
+  <aside class="sidebar">
+    <a class="sidebar-brand" href="/dashboard">
+      {% set tipo_cons = tipo_consultorio or (usuario.tipo_consultorio if usuario else none) %}
+      {% if tipo_cons == "VETERINARIO" %} AltaPet {% elif tipo_cons == "MEDICO" %} AltaMed {% else %} Alta {% endif %}
+    </a>
+    <nav>
+      <a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>
+        📊 Dashboard
+      </a>
+      <a href="/agenda" {% if active_page == 'agenda' %}class="active"{% endif %}>
+        📅 Agenda
+      </a>
+      <a href="/pacientes" {% if active_page == 'pacientes' %}class="active"{% endif %}>
+        {% if tipo_cons == "VETERINARIO" %}🐾 Mascotas{% else %}👤 Pacientes{% endif %}
+      </a>
+      {% if tipo_cons == "VETERINARIO" %}
+      <a href="/vacunas" {% if active_page == 'vacunas' %}class="active"{% endif %}>
+        💉 Vacunas
+      </a>
+      {% endif %}
+      <a href="/consultas" {% if active_page == 'consultas' %}class="active"{% endif %}>
+        📋 Consultas
+      </a>
+      <a href="/ingresos" {% if active_page == 'ingresos' %}class="active"{% endif %}>
+        💰 Ingresos
+      </a>
+      <a href="/reportes" {% if active_page == 'reportes' %}class="active"{% endif %}>
+        📈 Reportes
+      </a>
+      <a href="/configuracion" {% if active_page == 'configuracion' %}class="active"{% endif %}>
+        ⚙️ Configuración
+      </a>
+      <a href="/licencia" {% if active_page == 'licencia' %}class="active"{% endif %}>
+        🔑 Licencia
+      </a>
+    </nav>
+  </aside>
+  {% endif %}
+
+  <!-- Main area -->
+  <div class="main-area">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <span class="user-info">
+        {% if usuario %}
+          Hola, <strong>{{ usuario.nombre }}</strong>
+          &nbsp;·&nbsp;
+          <span>{{ usuario.rol }}</span>
+        {% endif %}
+      </span>
+      <button id="btn-tema" onclick="cambiarTema()" class="outline" title="Cambiar tema">🌙</button>
+      {% if usuario %}
+      <a class="logout" href="/logout" onclick="try { localStorage.removeItem('alta-token'); } catch(e){}">Cerrar sesión</a>
+      {% else %}
+      <a class="logout" href="/login">Iniciar sesión</a>
+      {% endif %}
+    </header>
+
+    <!-- Banner de licencia (visible solo si hay estado relevante) -->
+    {% if licencia_banner is defined and licencia_banner %}
+    <div class="licencia-banner licencia-banner-{{ licencia_banner.tipo }}" role="alert">
+      {{ licencia_banner.mensaje }}
+      <a href="/licencia" style="margin-left:.8rem; color:inherit; font-weight:700;">Ver licencia →</a>
+    </div>
+    {% endif %}
+
+    <!-- Page content -->
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+
+
+  </div><!-- /.main-area -->
+</div><!-- /.app-shell -->
+
+<script>
+  function cambiarTema() {
+    const actual = document.documentElement.getAttribute('data-theme') || 'light';
+    const nuevo = actual === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', nuevo);
+    localStorage.setItem('alta-tema', nuevo);
+    actualizarBotonTema(nuevo);
+  }
+
+  function actualizarBotonTema(tema) {
+    const btn = document.getElementById('btn-tema');
+    if (btn) btn.textContent = tema === 'light' ? '🌙' : '☀️';
+  }
+
+  // Sincronizar icono del botón al cargar la página
+  document.addEventListener('DOMContentLoaded', function() {
+    const tema = document.documentElement.getAttribute('data-theme') || 'light';
+    actualizarBotonTema(tema);
+  });
+</script>
+
+</body>
+</html>

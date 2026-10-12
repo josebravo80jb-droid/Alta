@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alta — Elige tu consultorio</title>
+  <!-- Aplicar tema guardado antes de renderizar para evitar flash -->
+  <script>
+    (function() {
+      const tema = localStorage.getItem('alta-tema') || 'light';
+      document.documentElement.setAttribute('data-theme', tema);
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/css/pico.min.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 2rem 1rem;
+      box-sizing: border-box;
+      background-color: var(--pico-background-color);
+      color: var(--pico-color);
+    }
+    .entrada-container {
+      width: 100%;
+      max-width: 680px;
+      text-align: center;
+    }
+    .brand-logo {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--pico-primary);
+      margin-bottom: 0.25rem;
+      letter-spacing: -1px;
+    }
+    .subtitulo {
+      font-size: 1.25rem;
+      color: var(--pico-muted-color);
+      margin-bottom: 2.5rem;
+    }
+    .grid-opciones {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    @media (max-width: 600px) {
+      .grid-opciones {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card-opcion {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+      border: 1px solid var(--pico-muted-border-color);
+      border-radius: 12px;
+      background: var(--pico-card-background-color);
+      text-decoration: none;
+      color: var(--pico-color);
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+    }
+    .card-opcion:hover {
+      transform: translateY(-4px);
+      border-color: var(--pico-primary);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+    .card-opcion .icono {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    .card-opcion .nombre {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--pico-primary);
+      margin-bottom: 0.75rem;
+    }
+    .card-opcion .descripcion {
+      font-size: 0.95rem;
+      color: var(--pico-muted-color);
+      line-height: 1.4;
+      margin: 0;
+    }
+    .footer-login {
+      font-size: 0.95rem;
+      color: var(--pico-muted-color);
+    }
+  </style>
+</head>
+<body>
+
+<div class="entrada-container">
+  <div class="brand-logo">Alta</div>
+  <p class="subtitulo">¿Qué tipo de consultorio tienes?</p>
+
+  <div class="grid-opciones">
+    <!-- Opción Médica: AltaMed -->
+    <a href="/registro?tipo=MEDICO" class="card-opcion" id="btn-altamed">
+      <div class="icono">🏥</div>
+      <div class="nombre">AltaMed</div>
+      <p class="descripcion">
+        Para médicos, odontólogos, psicólogos y profesionales de la salud humana
+      </p>
+    </a>
+
+    <!-- Opción Veterinaria: AltaPet -->
+    <a href="/registro?tipo=VETERINARIO" class="card-opcion" id="btn-altapet">
+      <div class="icono">🐾</div>
+      <div class="nombre">AltaPet</div>
+      <p class="descripcion">
+        Para veterinarios y clínicas de animales
+      </p>
+    </a>
+  </div>
+
+  <div class="footer-login">
+    ¿Ya tienes cuenta? <a href="/login">Iniciar sesión</a>
+  </div>
+</div>
+
+</body>
+</html>

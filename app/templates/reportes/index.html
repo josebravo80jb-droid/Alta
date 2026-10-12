@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 1.5rem;">
+
+  <!-- Encabezado + Selector de período -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h1 style="margin:0; font-size:1.6rem;">📊 Reportes del Consultorio</h1>
+      <small style="color:var(--pico-muted-color);">Generado: {{ reporte.generado_en[:19].replace('T',' ') }} UTC</small>
+    </div>
+    <form method="get" action="/reportes" style="display:flex; gap:.5rem; align-items:center;">
+      <label for="sel-periodo" style="margin:0; font-weight:600;">Período:</label>
+      <select id="sel-periodo" name="periodo" onchange="this.form.submit()" style="margin:0; width:auto; padding:.4rem .8rem;">
+        {% for p in periodos %}
+          <option value="{{ p }}" {% if p == periodo %}selected{% endif %}>
+            {% if p == "hoy" %}Hoy{% elif p == "semana" %}Esta semana{% elif p == "mes" %}Este mes{% else %}Este año{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SECCIÓN 1 — KPIs Financieros
+  ══════════════════════════════════════════════════ -->
+  <section style="margin-bottom:2rem;">
+    <h2 style="font-size:1.1rem; border-bottom:2px solid var(--pico-primary); padding-bottom:.4rem; margin-bottom:1rem;">
+      💰 Financiero
+    </h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+      <div class="kpi-card">
+        <span class="kpi-label">Ingresos USD</span>
+        <span class="kpi-value">${{ "%.2f"|format(reporte.financiero.total_usd) }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Pagos registrados</span>
+        <span class="kpi-value">{{ reporte.financiero.num_pagos }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Promedio por pago</span>
+        <span class="kpi-value">${{ "%.2f"|format(reporte.financiero.promedio_usd) }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Bs estimado</span>
+        <span class="kpi-value">Bs {{ "%.0f"|format(reporte.financiero.total_bs_estimado) }}</span>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; flex-wrap:wrap;">
+      <!-- Gráfico: Ingresos por mes -->
+      <div class="chart-box">
+        <h3 class="chart-title">Ingresos USD — últimos 12 meses</h3>
+        <canvas id="chartMeses" height="200"></canvas>
+      </div>
+      <!-- Gráfico: Por método de pago -->
+      <div class="chart-box">
+        <h3 class="chart-title">Método de pago</h3>
+        <canvas id="chartMetodo" height="200"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       SECCIÓN 2 — KPIs Demográficos
+  ══════════════════════════════════════════════════ -->
+  <section style="margin-bottom:2rem;">
+    <h2 style="font-size:1.1rem; border-bottom:2px solid var(--pico-primary); padding-bottom:.4rem; margin-bottom:1rem;">
+      👥 Demografía
+    </h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+      <div class="kpi-card">
+        <span class="kpi-label">Total pacientes</span>
+        <span class="kpi-value">{{ reporte.demografico.total_pacientes }}</span>
+      </div>
+      {# AltaPet: mostrar desglose Humanos (dueños) / Mascotas. AltaMed: todos son pacientes, no mostrar este desglose. #}
+      {% if consultorio and consultorio.tipo == 'VETERINARIO' %}
+      <div class="kpi-card">
+        <span class="kpi-label">Humanos (dueños)</span>
+        <span class="kpi-value">{{ reporte.demografico.humanos }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Mascotas</span>
+        <span class="kpi-value">{{ reporte.demografico.mascotas }}</span>
+      </div>
+      {% endif %}
+      <div class="kpi-card">
+        <span class="kpi-label">Con alergias</span>
+        <span class="kpi-value">{{ reporte.demografico.con_alergias }}</span>
+      </div>
+      <div class="kpi-card kpi-warn">
+        <span class="kpi-label">Diabéticos</span>
+        <span class="kpi-value">{{ reporte.demografico.diabeticos }}</span>
+      </div>
+      <div class="kpi-card kpi-warn">
+        <span class="kpi-label">Hipertensos</span>
+        <span class="kpi-value">{{ reporte.demografico.hipertensos }}</span>
+      </div>
+      <div class="kpi-card kpi-info">
+        <span class="kpi-label">Embarazadas</span>
+        <span class="kpi-value">{{ reporte.demografico.embarazadas }}</span>
+      </div>
+      <div class="kpi-card kpi-info">
+        <span class="kpi-label">Anticoagulantes</span>
+        <span class="kpi-value">{{ reporte.demografico.anticoagulantes }}</span>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+      <div class="chart-box">
+        <h3 class="chart-title">Distribución por edad</h3>
+        <canvas id="chartEdades" height="200"></canvas>
+      </div>
+      {# AltaPet: mostrar gráfico de mascotas por especie. AltaMed: no aplica. #}
+      {% if consultorio and consultorio.tipo == 'VETERINARIO' %}
+        {% if reporte.demografico.mascotas > 0 %}
+        <div class="chart-box">
+          <h3 class="chart-title">Mascotas por especie</h3>
+          <canvas id="chartEspecies" height="200"></canvas>
+        </div>
+        {% else %}
+        <div class="chart-box" style="display:flex; align-items:center; justify-content:center; color:var(--pico-muted-color);">
+          <p>No hay mascotas registradas</p>
+        </div>
+        {% endif %}
+      {% else %}
+        {# AltaMed: celda vacía para mantener el grid de 2 columnas #}
+        <div class="chart-box" style="display:flex; align-items:center; justify-content:center; color:var(--pico-muted-color);">
+          <p style="font-size:0.85rem;">Consultorio médico — datos por especie no aplican</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       SECCIÓN 3 — KPIs Clínicos
+  ══════════════════════════════════════════════════ -->
+  <section style="margin-bottom:2rem;">
+    <h2 style="font-size:1.1rem; border-bottom:2px solid var(--pico-primary); padding-bottom:.4rem; margin-bottom:1rem;">
+      🩺 Clínico
+    </h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+      <div class="kpi-card">
+        <span class="kpi-label">Consultas</span>
+        <span class="kpi-value">{{ reporte.clinico.total_consultas }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Citas completadas</span>
+        <span class="kpi-value">{{ reporte.clinico.citas_completadas }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Citas canceladas</span>
+        <span class="kpi-value">{{ reporte.clinico.citas_canceladas }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Tasa asistencia</span>
+        <span class="kpi-value">{{ reporte.clinico.tasa_asistencia }}%</span>
+      </div>
+    </div>
+
+    <!-- Gráfico: Consultas por día -->
+    <div class="chart-box" style="margin-bottom:1.5rem;">
+      <h3 class="chart-title">Consultas diarias — últimos 30 días</h3>
+      <canvas id="chartConsultasDia" height="120"></canvas>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1.5rem;">
+      <!-- Top motivos -->
+      <div class="chart-box">
+        <h3 class="chart-title">Top 10 motivos de consulta</h3>
+        {% if reporte.clinico.top_motivos %}
+          <table style="font-size:.85rem; width:100%; border-collapse:collapse;">
+            <thead><tr><th style="text-align:left;">Motivo</th><th>N°</th></tr></thead>
+            <tbody>
+            {% for item in reporte.clinico.top_motivos %}
+              <tr>
+                <td>{{ item.nombre[:40] }}</td>
+                <td style="text-align:right; font-weight:600;">{{ item.conteo }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p style="color:var(--pico-muted-color); text-align:center;">Sin datos</p>
+        {% endif %}
+      </div>
+
+      <!-- Top diagnósticos -->
+      <div class="chart-box">
+        <h3 class="chart-title">Top diagnósticos (CIE-10)</h3>
+        {% if reporte.clinico.top_diagnosticos %}
+          <table style="font-size:.85rem; width:100%; border-collapse:collapse;">
+            <thead><tr><th style="text-align:left;">Código</th><th>N°</th></tr></thead>
+            <tbody>
+            {% for item in reporte.clinico.top_diagnosticos %}
+              <tr>
+                <td><code>{{ item.nombre }}</code></td>
+                <td style="text-align:right; font-weight:600;">{{ item.conteo }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p style="color:var(--pico-muted-color); text-align:center;">Sin datos (use el campo diagnóstico en consultas)</p>
+        {% endif %}
+      </div>
+
+      <!-- Top medicamentos -->
+      <div class="chart-box">
+        <h3 class="chart-title">Top medicamentos prescritos</h3>
+        {% if reporte.clinico.top_medicamentos %}
+          <table style="font-size:.85rem; width:100%; border-collapse:collapse;">
+            <thead><tr><th style="text-align:left;">Medicamento</th><th>N°</th></tr></thead>
+            <tbody>
+            {% for item in reporte.clinico.top_medicamentos %}
+              <tr>
+                <td>{{ item.nombre }}</td>
+                <td style="text-align:right; font-weight:600;">{{ item.conteo }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p style="color:var(--pico-muted-color); text-align:center;">Sin datos (use el campo medicamentos en consultas)</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ─── Estilos locales ─── -->
+<style>
+  .kpi-card {
+    background: var(--pico-card-background-color, #fff);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: .75rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .3rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    transition: transform .15s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); }
+  .kpi-label { font-size: .75rem; color: var(--pico-muted-color); text-align:center; }
+  .kpi-value { font-size: 1.5rem; font-weight: 700; color: var(--pico-primary); }
+  .kpi-warn .kpi-value { color: #e67e22; }
+  .kpi-info .kpi-value { color: #2980b9; }
+
+  .chart-box {
+    background: var(--pico-card-background-color, #fff);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: .75rem;
+    padding: 1.2rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .chart-title {
+    font-size: .9rem;
+    font-weight: 600;
+    margin: 0 0 .8rem;
+    color: var(--pico-color);
+  }
+
+  table tbody tr:nth-child(even) { background: var(--pico-table-row-stripped-background-color, rgba(0,0,0,.03)); }
+  table tbody td { padding: .3rem .4rem; border-bottom: 1px solid var(--pico-muted-border-color); }
+  table thead th { padding: .3rem .4rem; border-bottom: 2px solid var(--pico-muted-border-color); }
+
+  @media (max-width: 640px) {
+    div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  }
+</style>
+
+<!-- ─── Chart.js (CDN con fallback silencioso) ─── -->
+<script>
+  (function() {
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    script.onerror = function() { console.warn('Alta: Chart.js no disponible (sin red).'); };
+    script.onload = function() { iniciarGraficos(); };
+    document.head.appendChild(script);
+  })();
+
+  // Datos del servidor (JSON embebido)
+  var DATOS = {
+    meses: {
+      labels: {{ reporte.financiero.por_mes | map(attribute='mes') | list | tojson }},
+      totales: {{ reporte.financiero.por_mes | map(attribute='total') | list | tojson }}
+    },
+    metodos: {
+      labels: {{ reporte.financiero.por_metodo.keys() | list | tojson }},
+      valores: {{ reporte.financiero.por_metodo.values() | list | tojson }}
+    },
+    edades: {
+      labels: {{ reporte.demografico.rango_edades.keys() | list | tojson }},
+      valores: {{ reporte.demografico.rango_edades.values() | list | tojson }}
+    },
+    especies: {
+      labels: {{ reporte.demografico.por_especie.keys() | list | tojson }},
+      valores: {{ reporte.demografico.por_especie.values() | list | tojson }}
+    },
+    consultasDia: {
+      labels: {{ reporte.clinico.consultas_por_dia | map(attribute='fecha') | list | tojson }},
+      valores: {{ reporte.clinico.consultas_por_dia | map(attribute='consultas') | list | tojson }}
+    }
+  };
+
+  var PALETA = [
+    '#3498db','#2ecc71','#e74c3c','#f39c12','#9b59b6',
+    '#1abc9c','#e67e22','#34495e','#e91e63','#00bcd4'
+  ];
+
+  function iniciarGraficos() {
+    var defaults = {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }
+    };
+
+    // Ingresos por mes
+    new Chart(document.getElementById('chartMeses'), {
+      type: 'bar',
+      data: {
+        labels: DATOS.meses.labels,
+        datasets: [{
+          label: 'USD',
+          data: DATOS.meses.totales,
+          backgroundColor: '#3498db88',
+          borderColor: '#3498db',
+          borderWidth: 2,
+          borderRadius: 6
+        }]
+      },
+      options: { ...defaults, plugins: { legend: { display: true, position: 'top' } } }
+    });
+
+    // Método de pago (doughnut)
+    var ctxMetodo = document.getElementById('chartMetodo');
+    if (DATOS.metodos.labels.length > 0) {
+      new Chart(ctxMetodo, {
+        type: 'doughnut',
+        data: {
+          labels: DATOS.metodos.labels,
+          datasets: [{ data: DATOS.metodos.valores, backgroundColor: PALETA }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'right' } } }
+      });
+    } else {
+      ctxMetodo.parentElement.innerHTML += '<p style="color:var(--pico-muted-color);text-align:center;">Sin pagos en el período</p>';
+      ctxMetodo.remove();
+    }
+
+    // Edades (bar horizontal)
+    new Chart(document.getElementById('chartEdades'), {
+      type: 'bar',
+      data: {
+        labels: DATOS.edades.labels,
+        datasets: [{
+          data: DATOS.edades.valores,
+          backgroundColor: '#9b59b688',
+          borderColor: '#9b59b6',
+          borderWidth: 2,
+          borderRadius: 4
+        }]
+      },
+      options: { ...defaults, indexAxis: 'y' }
+    });
+
+    // Especies (pie)
+    var ctxEspecies = document.getElementById('chartEspecies');
+    if (ctxEspecies && DATOS.especies.labels.length > 0) {
+      new Chart(ctxEspecies, {
+        type: 'pie',
+        data: {
+          labels: DATOS.especies.labels,
+          datasets: [{ data: DATOS.especies.valores, backgroundColor: PALETA }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'right' } } }
+      });
+    }
+
+    // Consultas por día (line)
+    new Chart(document.getElementById('chartConsultasDia'), {
+      type: 'line',
+      data: {
+        labels: DATOS.consultasDia.labels,
+        datasets: [{
+          label: 'Consultas',
+          data: DATOS.consultasDia.valores,
+          borderColor: '#2ecc71',
+          backgroundColor: '#2ecc7122',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { maxTicksLimit: 10 }, grid: { display: false } }, y: { beginAtZero: true } }
+      }
+    });
+  }
+</script>
+{% endblock %}

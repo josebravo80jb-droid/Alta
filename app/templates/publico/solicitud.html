@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solicitar Horario — {{ consultorio.nombre }}</title>
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <style>
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .public-container {
+      max-width: 580px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      width: 100%;
+      flex: 1;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+  </style>
+</head>
+<body>
+
+<div class="public-container">
+  <div class="card">
+    <a href="/agenda/{{ consultorio.slug }}" style="font-size:0.9rem; text-decoration:none; color:#0284c7; margin-bottom:1rem; display:inline-block;">
+      ← Volver al calendario de citas
+    </a>
+
+    <h2 style="margin-bottom:0.3rem;">Solicitar horario libre</h2>
+    <p style="color:#64748b; font-size:0.95rem; margin-bottom:1.5rem;">
+      ¿No encontraste un horario conveniente en la agenda? Déjanos tu disponibilidad preferida y el equipo de <strong>{{ consultorio.nombre }}</strong> te contactará para coordinar.
+    </p>
+
+    <form id="form-solicitud" onsubmit="enviarSolicitud(event)">
+      <label for="nombre">
+        Nombre y apellido
+        <input type="text" id="nombre" name="nombre" required minlength="2" maxlength="100" placeholder="Ej. Ana Gómez">
+      </label>
+
+      <label for="telefono">
+        Teléfono de contacto (WhatsApp)
+        <input type="tel" id="telefono" name="telefono" required minlength="7" maxlength="20" placeholder="Ej. 04147654321">
+      </label>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+        <label for="fecha_preferida">
+          Fecha sugerida (opcional)
+          <input type="date" id="fecha_preferida" name="fecha_preferida">
+        </label>
+
+        <label for="hora_preferida">
+          Hora o momento preferido (opcional)
+          <input type="text" id="hora_preferida" name="hora_preferida" placeholder="Ej. Mañana 10:00 o tardes">
+        </label>
+      </div>
+
+      <label for="motivo">
+        Motivo o detalle de la consulta
+        <textarea id="motivo" name="motivo" required minlength="3" maxlength="500" rows="3" placeholder="Describe brevemente la razón de la cita"></textarea>
+      </label>
+
+      <div id="error-msg" style="display:none; color:#dc2626; margin-bottom:1rem; font-size:0.9rem;"></div>
+
+      <button type="submit" id="btn-submit" style="width:100%; padding:0.75rem; font-weight:600; font-size:1rem; margin-top:0.5rem;">
+        Enviar Solicitud →
+      </button>
+    </form>
+  </div>
+
+  <div style="text-align:center; color:#94a3b8; font-size:0.85rem; margin-top:2rem;">
+    Sistema de agenda por <strong>Alta</strong>
+  </div>
+</div>
+
+<script>
+  const SLUG = "{{ consultorio.slug }}";
+
+  async function enviarSolicitud(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-submit");
+    const err = document.getElementById("error-msg");
+    err.style.display = "none";
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+
+    const payload = {
+      nombre: document.getElementById("nombre").value.trim(),
+      telefono: document.getElementById("telefono").value.trim(),
+      motivo: document.getElementById("motivo").value.trim(),
+      fecha_preferida: document.getElementById("fecha_preferida").value,
+      hora_preferida: document.getElementById("hora_preferida").value.trim(),
+    };
+
+    try {
+      const res = await fetch(`/api/agenda-publica/${SLUG}/solicitar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "No se pudo enviar la solicitud.");
+
+      window.location.href = `/agenda/${SLUG}/solicitud-exito`;
+    } catch(error) {
+      err.textContent = error.message;
+      err.style.display = "block";
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+    }
+  }
+</script>
+
+</body>
+</html>

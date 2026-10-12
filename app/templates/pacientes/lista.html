@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Pacientes — Alta{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+  <div>
+    <h2 style="margin:0;">Pacientes</h2>
+    <p style="margin:0; color:var(--pico-muted-color); font-size:0.9rem;">Directorio y fichas clínicas</p>
+  </div>
+  <a href="/pacientes/nuevo" role="button">+ Nuevo paciente</a>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div style="display:grid; grid-template-columns: 1fr auto; gap:1rem; margin-bottom:1.5rem; align-items:center;">
+  <input type="search" id="buscador" placeholder="Buscar por nombre, cédula o teléfono…"
+         oninput="filtrarPacientes()"
+         style="margin:0;" />
+  <div style="display:flex; gap:0.5rem; align-items:center;">
+    <button type="button" class="filtro-btn secondary" data-tipo="" onclick="cambiarFiltro('')" style="margin:0; padding:0.4rem 0.8rem; font-size:0.85rem;">Todos</button>
+    <button type="button" class="filtro-btn outline" data-tipo="HUMANO" onclick="cambiarFiltro('HUMANO')" style="margin:0; padding:0.4rem 0.8rem; font-size:0.85rem;">Humanos</button>
+    <button type="button" class="filtro-btn outline" data-tipo="MASCOTA" onclick="cambiarFiltro('MASCOTA')" style="margin:0; padding:0.4rem 0.8rem; font-size:0.85rem;">Mascotas</button>
+  </div>
+</div>
+
+<!-- Tabla -->
+<figure>
+  <table id="tabla-pacientes">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Cédula</th>
+        <th>Teléfono</th>
+        <th>Tipo</th>
+        <th>Última visita</th>
+        <th style="text-align:right;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pacientes %}
+      <tr data-nombre="{{ p.nombre | lower }}"
+          data-cedula="{{ p.cedula or '' | lower }}"
+          data-telefono="{{ p.telefono or '' | lower }}"
+          data-tipo="{{ p.tipo }}">
+        <td>
+          <a href="/pacientes/{{ p.id }}" style="font-weight:bold; text-decoration:none;">
+            {{ p.nombre }}
+          </a>
+          {% if p.tipo == 'MASCOTA' and p.especie %}
+            <small style="display:block; color:var(--pico-muted-color);">{{ p.especie }}{% if p.raza %} · {{ p.raza }}{% endif %}</small>
+          {% endif %}
+        </td>
+        <td>{{ p.cedula or '—' }}</td>
+        <td>{{ p.telefono or '—' }}</td>
+        <td>
+          <span style="font-size:0.8rem; padding:0.2rem 0.5rem; border-radius:4px;
+                       background-color:{% if p.tipo == 'MASCOTA' %}#fdf0d5; color:#7c4700;{% else %}#e2f0d9; color:#27501b;{% endif %} font-weight:600;">
+            {{ p.tipo }}
+          </span>
+        </td>
+        <td>
+          {% if p.ultima_visita %}
+            {{ p.ultima_visita.strftime('%d/%m/%Y') }}
+          {% else %}
+            <span style="color:var(--pico-muted-color);">Sin registros</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right;">
+          <a href="/pacientes/{{ p.id }}" role="button" class="outline" style="padding:0.25rem 0.6rem; font-size:0.8rem;">Ficha</a>
+          <a href="/pacientes/{{ p.id }}/editar" role="button" class="secondary outline" style="padding:0.25rem 0.6rem; font-size:0.8rem;">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr id="fila-vacia">
+        <td colspan="6" style="text-align:center; color:var(--pico-muted-color); padding:2rem 0;">
+          No hay pacientes registrados en este consultorio.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+
+<script>
+  let filtroTipoActual = '';
+
+  function cambiarFiltro(tipo) {
+    filtroTipoActual = tipo;
+    document.querySelectorAll('.filtro-btn').forEach(btn => {
+      if (btn.dataset.tipo === tipo) {
+        btn.classList.remove('outline');
+        btn.classList.add('secondary');
+      } else {
+        btn.classList.remove('secondary');
+        btn.classList.add('outline');
+      }
+    });
+    filtrarPacientes();
+  }
+
+  function filtrarPacientes() {
+    const q = (document.getElementById('buscador').value || '').toLowerCase().trim();
+    const filas = document.querySelectorAll('#tabla-pacientes tbody tr[data-nombre]');
+    let visibles = 0;
+
+    filas.forEach(tr => {
+      const nombre = tr.dataset.nombre || '';
+      const cedula = tr.dataset.cedula || '';
+      const telefono = tr.dataset.telefono || '';
+      const tipo = tr.dataset.tipo || '';
+
+      const coincideTexto = !q || nombre.includes(q) || cedula.includes(q) || telefono.includes(q);
+      const coincideTipo = !filtroTipoActual || tipo === filtroTipoActual;
+
+      if (coincideTexto && coincideTipo) {
+        tr.style.display = '';
+        visibles++;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+  }
+</script>
+{% endblock %}

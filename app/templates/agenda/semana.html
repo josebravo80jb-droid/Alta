@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+  <h2 style="margin:0;">Agenda semanal</h2>
+  <a href="/agenda/nueva" role="button">+ Nueva cita</a>
+</div>
+
+<!-- Navegación de semana -->
+<div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:1.5rem;">
+  <a href="/agenda?fecha={{ semana_anterior }}" role="button" class="outline" style="padding:0.4rem 1rem;">← Anterior</a>
+  <strong>{{ label_semana }}</strong>
+  <a href="/agenda?fecha={{ semana_siguiente }}" role="button" class="outline" style="padding:0.4rem 1rem;">Siguiente →</a>
+  <a href="/agenda?fecha={{ hoy }}" role="button" class="secondary" style="padding:0.4rem 1rem; margin-left:0.5rem;">Hoy</a>
+</div>
+
+<!-- Grid semanal -->
+<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:0.5rem; min-height:400px;">
+  {% for dia in dias %}
+  <div style="border:1px solid var(--pico-muted-border-color); border-radius:6px; overflow:hidden;">
+
+    <!-- Cabecera del día -->
+    <div style="
+      padding:0.4rem 0.5rem;
+      text-align:center;
+      font-size:0.8rem;
+      font-weight:600;
+      background:var(--pico-card-background-color);
+      border-bottom:1px solid var(--pico-muted-border-color);
+      {% if dia.es_hoy %}color:var(--pico-primary);{% endif %}
+    ">
+      {{ dia.nombre }}<br>
+      <span style="font-size:1rem; font-weight:700;">{{ dia.numero }}</span>
+    </div>
+
+    <!-- Citas del día -->
+    <div style="padding:0.4rem; display:flex; flex-direction:column; gap:0.35rem;">
+      {% for cita in dia.citas %}
+      <a href="/agenda/{{ cita.id }}/editar"
+         style="text-decoration:none; color:inherit;"
+         title="{{ cita.motivo or 'Sin motivo' }}">
+        <div class="cita-{{ cita.estado }}"
+             style="padding:0.3rem 0.5rem; border-radius:4px;
+                    background:var(--pico-card-background-color);
+                    font-size:0.78rem; cursor:pointer;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div style="font-weight:600;">{{ cita.fecha_hora.strftime('%H:%M') }}</div>
+            <button type="button"
+                    class="outline"
+                    title="Recordar por WhatsApp"
+                    onclick="event.preventDefault(); event.stopPropagation(); enviarRecordatorio({{ cita.id }});"
+                    style="padding:1px 4px; font-size:0.75rem; border:none; background:transparent; cursor:pointer; line-height:1; margin:0;">
+              📱
+            </button>
+          </div>
+          <div style="
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            max-width:100%;">
+            {{ cita.paciente_nombre }}
+            {% if cita.origen == 'publico' %}
+            <span title="Agendada vía enlace público" style="font-size:0.75rem; margin-left:2px;">🌐</span>
+            {% endif %}
+          </div>
+          {% if cita.motivo %}
+          <div style="color:var(--pico-muted-color); font-size:0.72rem;
+                      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            {{ cita.motivo }}
+          </div>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+
+      {% if not dia.citas %}
+      <span style="color:var(--pico-muted-color); font-size:0.75rem; padding:0.25rem;">
+        Sin citas
+      </span>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  async function enviarRecordatorio(citaId) {
+    const token = localStorage.getItem('alta-token') || '';
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const r = await fetch(`/api/citas/${citaId}/recordatorio`, { headers });
+      const data = await r.json();
+      if (r.ok && data.enlace) {
+        window.open(data.enlace, '_blank');
+      } else {
+        alert(data.detail || 'No se pudo generar el enlace de WhatsApp');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión al generar recordatorio');
+    }
+  }
+</script>
+
+{% endblock %}

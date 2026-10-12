@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Consulta — {{ paciente.nombre }} — Alta{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  <div style="margin-bottom: 1.5rem; display:flex; justify-content:space-between; align-items:center;">
+    <a href="/pacientes/{{ paciente.id }}" style="text-decoration:none; font-size:0.9rem;">
+      ← Volver a ficha de {{ paciente.nombre }}
+    </a>
+    <div style="display:flex; gap:0.5rem;">
+      <a href="/consultas/{{ consulta.id }}/editar" role="button" class="secondary">Editar Consulta</a>
+      <a href="/agenda/nueva?paciente_id={{ paciente.id }}" role="button">+ Nueva Cita</a>
+    </div>
+  </div>
+
+  <article>
+    <header style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <h2 style="margin:0;">Atención Médica</h2>
+        <p style="margin:0.25rem 0 0 0; color:var(--pico-muted-color);">
+          Paciente: <strong><a href="/pacientes/{{ paciente.id }}">{{ paciente.nombre }}</a></strong>
+          {% if paciente.cedula %} · Cédula: {{ paciente.cedula }}{% endif %}
+        </p>
+      </div>
+      <div style="text-align:right;">
+        <span style="display:block; font-weight:600;">{{ consulta.fecha.strftime('%d/%m/%Y %H:%M') }}</span>
+        <small style="color:var(--pico-muted-color);">Atendido por: {{ medico.nombre if medico else 'Médico' }}</small>
+      </div>
+    </header>
+
+    <div style="margin: 1.5rem 0;">
+      <h4>Motivo de Consulta</h4>
+      <p style="font-size:1.05rem;">{{ consulta.motivo }}</p>
+    </div>
+
+    <hr style="margin: 1.5rem 0;" />
+
+    <div style="margin: 1.5rem 0;">
+      <h4>Evolución y Nota Clínica</h4>
+      <div style="background-color: var(--pico-card-background-color); border: 1px solid var(--pico-muted-border-color); border-radius:6px; padding:1rem; white-space:pre-wrap;">{{ consulta.nota }}</div>
+    </div>
+
+    {% if consulta.diagnostico %}
+    <div style="margin: 1.5rem 0;">
+      <h4>Diagnóstico</h4>
+      <div style="padding:0.75rem 1rem; border-left:4px solid var(--pico-primary); background-color: var(--pico-card-background-color);">
+        {{ consulta.diagnostico }}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if consulta.indicaciones %}
+    <div style="margin: 1.5rem 0;">
+      <h4>Indicaciones y Tratamiento</h4>
+      <div style="background-color: var(--pico-card-background-color); border: 1px solid var(--pico-muted-border-color); border-radius:6px; padding:1rem; white-space:pre-wrap;">{{ consulta.indicaciones }}</div>
+    </div>
+    {% endif %}
+
+    {% if consulta.proxima_cita %}
+    <div style="margin: 1.5rem 0; padding:0.75rem 1rem; background-color:#eef4fc; border-radius:6px;">
+      <strong>Próximo control sugerido:</strong> {{ consulta.proxima_cita.strftime('%d/%m/%Y %H:%M') }}
+    </div>
+    {% endif %}
+  </article>
+</div>
+{% endblock %}

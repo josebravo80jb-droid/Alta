@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solicitud Enviada — Alta</title>
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <style>
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .public-container {
+      max-width: 520px;
+      margin: 4rem auto;
+      padding: 0 1rem;
+      width: 100%;
+      flex: 1;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    .icon-check {
+      font-size: 3.5rem;
+      color: #0284c7;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="public-container">
+  <div class="card">
+    <div class="icon-check">✓</div>
+    <h2 style="margin-bottom:0.4rem; color:#0f172a;">Solicitud enviada</h2>
+    <p style="color:#64748b; font-size:1rem; margin-bottom:1.5rem; line-height:1.5;">
+      El equipo revisará tu solicitud de horario y se pondrá en contacto contigo a la brevedad.
+    </p>
+
+    <a href="javascript:history.back()" role="button" class="outline" style="font-size:0.9rem;">
+      Regresar
+    </a>
+  </div>
+
+  <div style="text-align:center; color:#94a3b8; font-size:0.85rem; margin-top:2rem;">
+    Sistema de agenda por <strong>Alta</strong>
+  </div>
+</div>
+
+</body>
+</html>

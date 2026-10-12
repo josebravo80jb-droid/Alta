@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>¡Cita Agendada! — {{ consultorio.nombre }}</title>
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <style>
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .public-container {
+      max-width: 540px;
+      margin: 3rem auto;
+      padding: 0 1rem;
+      width: 100%;
+      flex: 1;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    .icon-check {
+      font-size: 3.5rem;
+      color: #16a34a;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .detalles-box {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+      text-align: left;
+    }
+    .btn-whatsapp {
+      background-color: #25d366;
+      border-color: #25d366;
+      color: white;
+      font-weight: 700;
+      padding: 0.85rem 1.25rem;
+      font-size: 1.05rem;
+      width: 100%;
+      display: inline-block;
+      text-decoration: none;
+      border-radius: 8px;
+      box-sizing: border-box;
+      margin-bottom: 1rem;
+    }
+    .btn-whatsapp:hover {
+      background-color: #1ebe5d;
+      border-color: #1ebe5d;
+    }
+  </style>
+</head>
+<body>
+
+<div class="public-container">
+  <div class="card">
+    <div class="icon-check">✓</div>
+    <h2 style="margin-bottom:0.25rem; color:#0f172a;">¡Cita Agendada!</h2>
+    <p style="color:#64748b; font-size:0.95rem; margin-bottom:1rem;">
+      Tu cita ha sido registrada exitosamente en <strong>{{ consultorio.nombre }}</strong>.
+    </p>
+
+    <div class="detalles-box">
+      <p style="margin:0 0 0.4rem 0;"><strong>Paciente:</strong> {{ cita.nombre_solicitante or (paciente.nombre if paciente else 'Paciente') }}</p>
+      <p style="margin:0 0 0.4rem 0;"><strong>Fecha:</strong> {{ fecha_formateada }}</p>
+      <p style="margin:0 0 0.4rem 0;"><strong>Hora:</strong> {{ hora_formateada }}</p>
+      <p style="margin:0 0 0.4rem 0;"><strong>Motivo:</strong> {{ cita.motivo }}</p>
+      <p style="margin:0;"><strong>Lugar:</strong> {{ consultorio.direccion }}</p>
+    </div>
+
+    {% if enlace_whatsapp %}
+    <a href="{{ enlace_whatsapp }}" target="_blank" class="btn-whatsapp">
+      📱 Confirmar por WhatsApp
+    </a>
+    <small style="display:block; color:#64748b; margin-top:-0.5rem; margin-bottom:1.5rem;">
+      Toca el botón para enviar la confirmación directamente al consultorio.
+    </small>
+    {% endif %}
+
+    <p style="font-size:0.9rem; color:#64748b; margin-bottom:1.5rem;">
+      El médico verá tu cita en su agenda oficial. Te recomendamos guardar la fecha en tu calendario.
+    </p>
+
+    <a href="/agenda/{{ consultorio.slug }}" role="button" class="outline" style="font-size:0.9rem;">
+      Volver al consultorio
+    </a>
+  </div>
+
+  <div style="text-align:center; color:#94a3b8; font-size:0.85rem; margin-top:2rem;">
+    Sistema de agenda por <strong>Alta</strong>
+  </div>
+</div>
+
+</body>
+</html>

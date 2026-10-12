@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Consultas{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+  <div>
+    <h1 style="margin:0; font-size:1.6rem;">📋 Consultas</h1>
+    <p style="margin:0.25rem 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+      Historial clínico del consultorio
+    </p>
+  </div>
+  {% if usuario.rol == "MEDICO" %}
+  <a href="/consultas/nueva" role="button" id="btn-nueva-consulta">
+    ＋ Nueva consulta
+  </a>
+  {% endif %}
+</div>
+
+{# ── Filtros ── #}
+<form method="get" action="/consultas" style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem; align-items:flex-end;">
+  <div style="flex:1; min-width:180px;">
+    <label for="q" style="font-size:0.85rem; font-weight:600;">Buscar paciente</label>
+    <input id="q" name="q" type="search" value="{{ q or '' }}"
+           placeholder="Nombre del paciente…"
+           style="margin-bottom:0;" />
+  </div>
+  <div style="min-width:140px;">
+    <label for="desde" style="font-size:0.85rem; font-weight:600;">Desde</label>
+    <input id="desde" name="desde" type="date" value="{{ desde or '' }}" style="margin-bottom:0;" />
+  </div>
+  <div style="min-width:140px;">
+    <label for="hasta" style="font-size:0.85rem; font-weight:600;">Hasta</label>
+    <input id="hasta" name="hasta" type="date" value="{{ hasta or '' }}" style="margin-bottom:0;" />
+  </div>
+  <div>
+    <button type="submit" style="margin-bottom:0;" id="btn-filtrar">Filtrar</button>
+  </div>
+</form>
+
+{# ── Tabla ── #}
+{% if consultas %}
+<div style="overflow-x:auto;">
+  <table id="tabla-consultas" style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; padding:0.6rem 0.75rem; font-size:0.85rem; color:var(--pico-muted-color); border-bottom:2px solid var(--pico-muted-border-color);">Fecha</th>
+        <th style="text-align:left; padding:0.6rem 0.75rem; font-size:0.85rem; color:var(--pico-muted-color); border-bottom:2px solid var(--pico-muted-border-color);">Paciente</th>
+        <th style="text-align:left; padding:0.6rem 0.75rem; font-size:0.85rem; color:var(--pico-muted-color); border-bottom:2px solid var(--pico-muted-border-color);">Motivo</th>
+        {% if usuario.rol == "MEDICO" %}
+        <th style="text-align:left; padding:0.6rem 0.75rem; font-size:0.85rem; color:var(--pico-muted-color); border-bottom:2px solid var(--pico-muted-border-color);">Diagnóstico</th>
+        {% endif %}
+        <th style="text-align:center; padding:0.6rem 0.75rem; font-size:0.85rem; color:var(--pico-muted-color); border-bottom:2px solid var(--pico-muted-border-color);">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in consultas %}
+      <tr style="border-bottom:1px solid var(--pico-muted-border-color);">
+        <td style="padding:0.65rem 0.75rem; font-size:0.9rem; white-space:nowrap;">
+          {{ c.fecha.strftime("%d/%m/%Y") if c.fecha else "—" }}
+        </td>
+        <td style="padding:0.65rem 0.75rem; font-size:0.9rem;">
+          <a href="/pacientes/{{ c.paciente_id }}" style="color:var(--pico-primary);">
+            {{ c.paciente_nombre }}
+          </a>
+        </td>
+        <td style="padding:0.65rem 0.75rem; font-size:0.9rem; color:var(--pico-muted-color);">
+          {{ c.motivo | truncate(60) }}
+        </td>
+        {% if usuario.rol == "MEDICO" %}
+        <td style="padding:0.65rem 0.75rem; font-size:0.85rem; color:var(--pico-muted-color);">
+          {{ (c.diagnostico or "—") | truncate(40) }}
+        </td>
+        {% endif %}
+        <td style="padding:0.65rem 0.75rem; text-align:center;">
+          {% if usuario.rol == "MEDICO" %}
+          <a href="/consultas/{{ c.id }}" class="outline" role="button"
+             style="font-size:0.8rem; padding:0.2rem 0.7rem; margin-bottom:0;"
+             id="btn-ver-consulta-{{ c.id }}">Ver</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p style="margin-top:1rem; font-size:0.85rem; color:var(--pico-muted-color);">
+  {{ consultas | length }} consulta(s) encontrada(s)
+</p>
+
+{% else %}
+<div style="text-align:center; padding:3rem 1rem; color:var(--pico-muted-color);">
+  <div style="font-size:2.5rem; margin-bottom:0.75rem;">📋</div>
+  <p id="msg-sin-consultas" style="font-size:1rem; margin:0;">No hay consultas registradas</p>
+  {% if usuario.rol == "MEDICO" %}
+  <a href="/consultas/nueva" role="button" class="outline" style="margin-top:1rem; display:inline-block;">
+    Registrar primera consulta
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

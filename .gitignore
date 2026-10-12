@@ -1,0 +1,10 @@
+data/
+data/clave.key
+*.key
+venv/
+__pycache__/
+*.pyc
+.env
+.vscode/
+.idea/
+

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Calendario de Vacunas — {{ paciente.nombre }} — AltaPet{% endblock %}
+
+{% block content %}
+<div style="max-width: 820px; margin: 0 auto;">
+
+  <div style="margin-bottom: 1.5rem;">
+    <a href="/pacientes/{{ paciente.id }}" style="text-decoration:none; font-size:0.9rem;">
+      ← Volver al paciente
+    </a>
+  </div>
+
+  <article>
+    <header style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+      <div>
+        <h2 style="margin:0;">💉 Calendario de Vacunación: {{ paciente.nombre }}</h2>
+        <p style="margin:0.25rem 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+          Especie: <strong>{{ paciente.especie or 'No definida' }}</strong> · Raza: <strong>{{ paciente.raza or 'No definida' }}</strong>
+          {% if paciente.fecha_nacimiento %} · Nacimiento: {{ paciente.fecha_nacimiento.strftime('%d/%m/%Y') }}{% endif %}
+        </p>
+      </div>
+      <div>
+        <a href="/vacunas/{{ paciente.id }}/nueva" role="button" style="font-size:0.85rem; margin-bottom:0;">
+          + Registrar Vacuna
+        </a>
+      </div>
+    </header>
+
+    <!-- Vacunas Pendientes / Programadas del Calendario -->
+    <h4 style="margin-top:1rem; font-size:1.05rem;">Calendario Preventivo Programado</h4>
+    {% if calendario_teorico %}
+    <table style="width:100%; font-size:0.9rem; margin-bottom:1.5rem;">
+      <thead>
+        <tr>
+          <th>Vacuna</th>
+          <th>Dosis</th>
+          <th>Fecha Programada</th>
+          <th>Tipo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in calendario_teorico %}
+        <tr>
+          <td><strong>{{ item.vacuna }}</strong></td>
+          <td>Dosis #{{ item.dosis_numero }}</td>
+          <td>{{ item.fecha_programada.strftime('%d/%m/%Y') }}</td>
+          <td>{{ 'Refuerzo periódico' if item.es_refuerzo else 'Dosis inicial' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--pico-muted-color); font-size:0.9rem;">
+      No hay calendario predefinido o la mascota no tiene fecha de nacimiento registrada.
+    </p>
+    {% endif %}
+
+    <!-- Vacunas Aplicadas -->
+    <h4 style="margin-top:1.5rem; font-size:1.05rem;">Vacunas Ya Aplicadas</h4>
+    {% if vacunas_aplicadas %}
+    <table style="width:100%; font-size:0.9rem;">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Vacuna</th>
+          <th>Lote / Lab</th>
+          <th>Próxima Dosis</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vacunas_aplicadas %}
+        <tr>
+          <td>{{ v.fecha_aplicacion.strftime('%d/%m/%Y') }}</td>
+          <td><strong>{{ v.tipo }}</strong></td>
+          <td>{{ v.lote or '' }} {{ ('(' + v.laboratorio + ')') if v.laboratorio else '' }}</td>
+          <td>{{ v.proxima_dosis.strftime('%d/%m/%Y') if v.proxima_dosis else '—' }}</td>
+          <td>{{ v.notas or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--pico-muted-color); font-size:0.9rem;">Aún no se han registrado vacunas para esta mascota.</p>
+    {% endif %}
+
+    <div style="margin-top:2rem; text-align:right;">
+      <button class="outline" onclick="window.print()" style="font-size:0.85rem;">
+        🖨️ Exportar / Imprimir Calendario
+      </button>
+    </div>
+  </article>
+
+</div>
+{% endblock %}

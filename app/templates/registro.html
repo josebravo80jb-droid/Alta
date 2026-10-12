@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title">{% if tipo == 'VETERINARIO' %}AltaPet — Crear cuenta{% else %}AltaMed — Crear cuenta{% endif %}</title>
+  <!-- Aplicar tema guardado antes de renderizar para evitar flash -->
+  <script>
+    (function() {
+      const tema = localStorage.getItem('alta-tema') || 'light';
+      document.documentElement.setAttribute('data-theme', tema);
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/css/pico.min.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 2rem 1rem;
+      box-sizing: border-box;
+    }
+    .registro-card {
+      width: 100%;
+      max-width: 460px;
+    }
+    .registro-card h1 {
+      text-align: center;
+      margin-bottom: 0.25rem;
+      color: var(--pico-primary);
+    }
+    .registro-card .subtitle {
+      text-align: center;
+      color: var(--pico-muted-color);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="registro-card">
+  <article>
+    <h1 id="brand-title">{% if tipo == 'VETERINARIO' %}AltaPet{% else %}AltaMed{% endif %}</h1>
+    <p class="subtitle" id="brand-subtitle">{% if tipo == 'VETERINARIO' %}AltaPet — Crear cuenta{% else %}AltaMed — Crear cuenta{% endif %}</p>
+
+    {% if error %}
+    <p style="color: var(--pico-del-color); font-size: 0.9rem;">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/registro" id="form-registro">
+      <input type="hidden" id="tipo" name="tipo" value="{{ tipo or 'MEDICO' }}" />
+
+      <label for="nombre">
+        Nombre del consultorio / profesional
+        <input type="text" id="nombre" name="nombre" placeholder="Consultorio San Rafael" required />
+      </label>
+
+      <div class="grid-2">
+        <label for="email">
+          Email
+          <input type="email" id="email" name="email" placeholder="doctor@ejemplo.com" required autocomplete="email" />
+        </label>
+
+        <label for="password">
+          Contraseña
+          <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres" required autocomplete="new-password" />
+        </label>
+      </div>
+
+      <label for="especialidad">
+        Especialidad
+        <input
+          type="text"
+          id="especialidad"
+          name="especialidad"
+          placeholder="{% if tipo == 'VETERINARIO' %}Clínica de pequeños animales, Equinos, Exóticos...{% else %}Medicina General, Pediatría, Odontología...{% endif %}"
+          required
+        />
+      </label>
+
+      <label for="direccion">
+        Dirección
+        <input type="text" id="direccion" name="direccion" placeholder="Av. Principal 123" required />
+      </label>
+
+      <label for="rif">
+        RIF del consultorio (opcional)
+        <input type="text" id="rif" name="rif" placeholder="J-123456789" />
+      </label>
+
+      <label for="telefono">
+        Teléfono
+        <input type="tel" id="telefono" name="telefono" placeholder="+58 212 555 0000" required />
+      </label>
+
+      <button type="submit" style="width: 100%;">Crear cuenta</button>
+    </form>
+
+    <p style="text-align: center; font-size: 0.85rem; margin-top: 1rem;">
+      ¿Ya tienes cuenta? <a href="/login">Iniciar sesión</a>
+    </p>
+  </article>
+</div>
+
+<script>
+  // Adaptación dinámica desde query string del navegador si se carga directamente
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const tipoParam = params.get('tipo');
+    if (tipoParam) {
+      const tipoUpper = tipoParam.toUpperCase();
+      const tipoInput = document.getElementById('tipo');
+      if (tipoInput) tipoInput.value = tipoUpper;
+
+      const pageTitle = document.getElementById('page-title');
+      const brandTitle = document.getElementById('brand-title');
+      const brandSubtitle = document.getElementById('brand-subtitle');
+      const espInput = document.getElementById('especialidad');
+
+      if (tipoUpper === 'VETERINARIO') {
+        if (pageTitle) pageTitle.textContent = 'AltaPet — Crear cuenta';
+        if (brandTitle) brandTitle.textContent = 'AltaPet';
+        if (brandSubtitle) brandSubtitle.textContent = 'AltaPet — Crear cuenta';
+        if (espInput) espInput.placeholder = 'Clínica de pequeños animales, Equinos, Exóticos...';
+      } else {
+        if (pageTitle) pageTitle.textContent = 'AltaMed — Crear cuenta';
+        if (brandTitle) brandTitle.textContent = 'AltaMed';
+        if (brandSubtitle) brandSubtitle.textContent = 'AltaMed — Crear cuenta';
+        if (espInput) espInput.placeholder = 'Medicina General, Pediatría, Odontología...';
+      }
+    }
+  })();
+</script>
+
+</body>
+</html>

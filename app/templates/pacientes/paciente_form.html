@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}{% if paciente %}Editar {{ paciente.nombre }}{% else %}Nuevo Paciente{% endif %} — Alta{% endblock %}
+
+{% block content %}
+<div style="max-width: 720px; margin: 0 auto;">
+  <div style="margin-bottom: 1.5rem;">
+    <a href="{% if paciente %}/pacientes/{{ paciente.id }}{% else %}/pacientes{% endif %}" style="text-decoration:none; font-size:0.9rem;">
+      ← Cancelar y volver
+    </a>
+  </div>
+
+  <article>
+    <header>
+      <h2 style="margin:0;">{% if paciente %}Editar paciente{% else %}Registrar nuevo paciente{% endif %}</h2>
+      <p style="margin:0.25rem 0 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+        Complete la información básica y antecedentes del paciente
+      </p>
+    </header>
+
+    <form id="form-paciente" onsubmit="guardarPaciente(event)">
+      <!-- Selector de Tipo -->
+      <div style="margin-bottom: 1.5rem;">
+        <label><strong>Tipo de paciente</strong></label>
+        <div style="display:flex; gap:1.5rem; margin-top:0.5rem;">
+          <label>
+            <input type="radio" name="tipo" value="HUMANO"
+                   {% if not paciente or paciente.tipo == 'HUMANO' %}checked{% endif %}
+                   onchange="cambiarTipo(this.value)" />
+            Humano
+          </label>
+          <label>
+            <input type="radio" name="tipo" value="MASCOTA"
+                   {% if paciente and paciente.tipo == 'MASCOTA' %}checked{% endif %}
+                   onchange="cambiarTipo(this.value)" />
+            Mascota
+          </label>
+        </div>
+      </div>
+
+      <!-- Datos Básicos -->
+      <div class="grid">
+        <label for="nombre">
+          Nombre completo *
+          <input type="text" id="nombre" name="nombre" value="{{ paciente.nombre if paciente else '' }}" required />
+        </label>
+        <label for="cedula" id="label-cedula">
+          Cédula / Documento
+          <input type="text" id="cedula" name="cedula"
+                 placeholder="Ej: V-12345678"
+                 value="{{ paciente.cedula if (paciente and paciente.cedula) else '' }}" />
+          <small style="color:var(--pico-muted-color); font-size:0.75rem;">Formato: V-12345678</small>
+        </label>
+      </div>
+
+      <div class="grid">
+        <label for="telefono">
+          Teléfono de contacto
+          <input type="tel" id="telefono" name="telefono" value="{{ paciente.telefono if (paciente and paciente.telefono) else '' }}" />
+        </label>
+        <label for="email">
+          Correo electrónico
+          <input type="email" id="email" name="email" value="{{ paciente.email if (paciente and paciente.email) else '' }}" />
+        </label>
+      </div>
+
+      <div class="grid">
+        <label for="fecha_nacimiento">
+          Fecha de nacimiento
+          <input type="date" id="fecha_nacimiento" name="fecha_nacimiento"
+                 value="{{ paciente.fecha_nacimiento.strftime('%Y-%m-%d') if (paciente and paciente.fecha_nacimiento) else '' }}" />
+        </label>
+        <label for="alergias">
+          Alergias o contraindicaciones
+          <input type="text" id="alergias" name="alergias" placeholder="Ej: Penicilina, polen..."
+                 value="{{ paciente.alergias if (paciente and paciente.alergias) else '' }}" />
+        </label>
+      </div>
+
+      <!-- Sección exclusiva de Mascotas -->
+      <div id="seccion-mascota" style="display: {% if paciente and paciente.tipo == 'MASCOTA' %}block{% else %}none{% endif %};
+           padding: 1rem; border: 1px dashed var(--pico-muted-border-color); border-radius: 8px; margin-bottom: 1.5rem;">
+        <h4 style="margin-top:0; font-size:1rem;">Datos de la Mascota</h4>
+        <div class="grid">
+          <label for="especie">
+            Especie
+            <select id="especie" name="especie" onchange="cargarRazasPorEspecie(this.value)">
+              <option value="">-- Seleccionar especie --</option>
+              <option value="perro" {% if paciente and paciente.especie == 'perro' %}selected{% endif %}>Perro</option>
+              <option value="gato" {% if paciente and paciente.especie == 'gato' %}selected{% endif %}>Gato</option>
+              <option value="conejo" {% if paciente and paciente.especie == 'conejo' %}selected{% endif %}>Conejo</option>
+              <option value="roedor" {% if paciente and paciente.especie == 'roedor' %}selected{% endif %}>Roedor</option>
+              <option value="ave" {% if paciente and paciente.especie == 'ave' %}selected{% endif %}>Ave</option>
+              <option value="reptil" {% if paciente and paciente.especie == 'reptil' %}selected{% endif %}>Reptil</option>
+              <option value="equino" {% if paciente and paciente.especie == 'equino' %}selected{% endif %}>Equino</option>
+            </select>
+          </label>
+          <label for="raza">
+            Raza
+            <select id="raza" name="raza">
+              <option value="">-- Seleccionar o escribir raza --</option>
+              {% if paciente and paciente.raza %}
+              <option value="{{ paciente.raza }}" selected>{{ paciente.raza }}</option>
+              {% endif %}
+            </select>
+          </label>
+        </div>
+        <div class="grid">
+          <label for="peso_kg">
+            Peso (kg)
+            <input type="number" step="0.01" min="0.01" id="peso_kg" name="peso_kg"
+                   placeholder="Mayor a 0"
+                   value="{{ paciente.peso_kg if (paciente and paciente.peso_kg is not none) else '' }}" />
+          </label>
+          <label for="microchip">
+            Microchip
+            <input type="text" id="microchip" name="microchip"
+                   placeholder="Código opcional"
+                   value="{{ paciente.microchip if (paciente and paciente.microchip) else '' }}" />
+          </label>
+        </div>
+
+        <label for="dueno_id">
+          Propietario / Dueño
+          <select id="dueno_id" name="dueno_id">
+            <option value="">-- Seleccionar dueño existente --</option>
+            {% for d in duenos %}
+              <option value="{{ d.id }}" {% if paciente and paciente.dueno_id == d.id %}selected{% endif %}>
+                {{ d.nombre }} (Tel: {{ d.telefono }})
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <!-- Notas Generales -->
+      <label for="notas_generales">
+        Notas generales / Observaciones
+        <textarea id="notas_generales" name="notas_generales" rows="3">{{ paciente.notas_generales if (paciente and paciente.notas_generales) else '' }}</textarea>
+      </label>
+
+      <!-- Botones -->
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+        <a href="{% if paciente %}/pacientes/{{ paciente.id }}{% else %}/pacientes{% endif %}" role="button" class="secondary outline">Cancelar</a>
+        <button type="submit" id="btn-submit">
+          {% if paciente %}Guardar cambios{% else %}Crear paciente{% endif %}
+        </button>
+      </div>
+    </form>
+  </article>
+</div>
+
+<script>
+  async function cargarRazasPorEspecie(especie) {
+    const selRaza = document.getElementById('raza');
+    if (!selRaza) return;
+    selRaza.innerHTML = '<option value="">-- Seleccionar o escribir raza --</option>';
+    if (!especie) return;
+
+    try {
+      const res = await fetch(`/api/veterinaria/razas?especie=${encodeURIComponent(especie)}`);
+      if (res.ok) {
+        const razas = await res.json();
+        razas.forEach(r => {
+          const opt = document.createElement('option');
+          opt.value = r;
+          opt.textContent = r;
+          selRaza.appendChild(opt);
+        });
+      }
+    } catch(e) {}
+  }
+
+  function cambiarTipo(tipo) {
+    const seccionMascota = document.getElementById('seccion-mascota');
+    if (tipo === 'MASCOTA') {
+      seccionMascota.style.display = 'block';
+    } else {
+      seccionMascota.style.display = 'none';
+    }
+  }
+
+  async function guardarPaciente(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+
+    const tipo = document.querySelector('input[name="tipo"]:checked').value;
+    const data = {
+      tipo: tipo,
+      nombre: document.getElementById('nombre').value.trim(),
+      cedula: document.getElementById('cedula').value.trim() || null,
+      telefono: document.getElementById('telefono').value.trim() || null,
+      email: document.getElementById('email').value.trim() || null,
+      fecha_nacimiento: document.getElementById('fecha_nacimiento').value || null,
+      alergias: document.getElementById('alergias').value.trim() || null,
+      notas_generales: document.getElementById('notas_generales').value.trim() || null,
+    };
+
+    if (tipo === 'MASCOTA') {
+      data.especie = document.getElementById('especie').value.trim() || null;
+      data.raza = document.getElementById('raza').value.trim() || null;
+      const pesoVal = document.getElementById('peso_kg').value;
+      data.peso_kg = pesoVal ? parseFloat(pesoVal) : null;
+      data.microchip = document.getElementById('microchip').value.trim() || null;
+      const duenoVal = document.getElementById('dueno_id').value;
+      data.dueno_id = duenoVal ? parseInt(duenoVal, 10) : null;
+    }
+
+    const pacienteId = "{{ paciente.id if paciente else '' }}";
+    const url = pacienteId ? `/api/pacientes/${pacienteId}` : '/api/pacientes';
+    const method = pacienteId ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        const item = await res.json();
+        window.location.href = `/pacientes/${item.id}`;
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'No se pudo guardar el paciente'));
+        btn.disabled = false;
+      }
+    } catch(err) {
+      alert('Error de conexión: ' + err.message);
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}

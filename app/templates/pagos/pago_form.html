@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}{% if pago %}Editar Pago{% else %}Registrar Pago{% endif %} — Alta{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+  <div style="margin-bottom: 1.5rem;">
+    <a href="{% if paciente_id_sel %}/pacientes/{{ paciente_id_sel }}{% else %}/ingresos{% endif %}" style="text-decoration:none; font-size:0.9rem;">
+      ← Cancelar y volver
+    </a>
+  </div>
+
+  <article>
+    <header>
+      <h2 style="margin:0;">{% if pago %}Editar Pago{% else %}Registrar Cobro / Pago{% endif %}</h2>
+      <p style="margin:0.25rem 0 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+        Emisión de recibo y control financiero
+      </p>
+    </header>
+
+    <form id="form-pago" onsubmit="guardarPago(event)">
+      <!-- Paciente -->
+      <label for="paciente_id">
+        Paciente *
+        <select id="paciente_id" name="paciente_id" required {% if pago %}disabled{% endif %} onchange="actualizarConsultas(this.value)">
+          <option value="">-- Seleccionar paciente --</option>
+          {% for p in pacientes %}
+            <option value="{{ p.id }}" {% if (paciente_id_sel and paciente_id_sel == p.id) or (pago and pago.paciente_id == p.id) %}selected{% endif %}>
+              {{ p.nombre }} {% if p.cedula %}(Cédula: {{ p.cedula }}){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <!-- Consulta vinculada -->
+      <label for="consulta_id">
+        Consulta asociada (Opcional)
+        <select id="consulta_id" name="consulta_id">
+          <option value="">-- Ninguna / Pago directo --</option>
+          {% for c in consultas %}
+            <option value="{{ c.id }}" {% if pago and pago.consulta_id == c.id %}selected{% endif %}>
+              {{ c.fecha.strftime('%d/%m/%Y') }} — {{ c.motivo }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <!-- Monto y Moneda -->
+      <div class="grid">
+        <label for="monto">
+          Monto *
+          <input type="number" step="0.01" min="0" id="monto" name="monto" required
+                 value="{{ pago.monto if pago else '' }}" placeholder="0.00" />
+        </label>
+        <label for="moneda">
+          Moneda *
+          <select id="moneda" name="moneda" required onchange="calcularConversion()">
+            <option value="USD" {% if not pago or pago.moneda == 'USD' %}selected{% endif %}>USD ($)</option>
+            <option value="VES" {% if pago and pago.moneda == 'VES' %}selected{% endif %}>VES (Bs.)</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Conversión con Tasa BCV -->
+      <div id="panel-tasa-bcv" style="background:var(--pico-card-background-color); border:1px solid var(--pico-muted-border-color); border-radius:6px; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <span>🏦 Tasa BCV del día: <strong id="val-tasa-bcv">Cargando...</strong> Bs/USD</span>
+            <div id="val-conversion" style="margin-top:0.25rem; color:var(--pico-primary); font-weight:600;"></div>
+          </div>
+          <button type="button" class="outline" style="font-size:0.75rem; padding:0.2rem 0.5rem; margin-bottom:0;" onclick="cargarTasaBCV(true)">
+            🔄 Recalcular con tasa del día
+          </button>
+        </div>
+      </div>
+
+      <!-- Método y Estado -->
+      <div class="grid">
+        <label for="metodo">
+          Método de pago
+          <select id="metodo" name="metodo">
+            <option value="efectivo" {% if not pago or pago.metodo == 'efectivo' %}selected{% endif %}>Efectivo</option>
+            <option value="zelle" {% if pago and pago.metodo == 'zelle' %}selected{% endif %}>Zelle</option>
+            <option value="binance" {% if pago and pago.metodo == 'binance' %}selected{% endif %}>Binance</option>
+            <option value="transferencia" {% if pago and pago.metodo == 'transferencia' %}selected{% endif %}>Transferencia Bancaria</option>
+            <option value="otro" {% if pago and pago.metodo == 'otro' %}selected{% endif %}>Otro</option>
+          </select>
+        </label>
+        <label for="estado">
+          Estado del cobro
+          <select id="estado" name="estado">
+            <option value="pagado" {% if not pago or pago.estado == 'pagado' %}selected{% endif %}>Pagado</option>
+            <option value="pendiente" {% if pago and pago.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Botones -->
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+        <a href="{% if paciente_id_sel %}/pacientes/{{ paciente_id_sel }}{% else %}/ingresos{% endif %}" role="button" class="secondary outline">Cancelar</a>
+        <button type="submit" id="btn-guardar">
+          {% if pago %}Guardar Cambios{% else %}Registrar Pago{% endif %}
+        </button>
+      </div>
+    </form>
+  </article>
+</div>
+
+<script>
+  let tasaBCVActual = 0;
+
+  async function cargarTasaBCV(forzar = false) {
+    try {
+      const url = forzar ? '/api/configuracion/tasa-bcv/refrescar' : '/api/configuracion/tasa-bcv';
+      const method = forzar ? 'POST' : 'GET';
+      const res = await fetch(url, { method: method });
+      if (res.ok) {
+        const d = await res.json();
+        tasaBCVActual = d.tasa_bcv || d.tasa_respaldo || 0;
+        document.getElementById('val-tasa-bcv').textContent = tasaBCVActual.toFixed(2);
+        calcularConversion();
+      }
+    } catch(e) {
+      document.getElementById('val-tasa-bcv').textContent = '40.00 (respaldo)';
+      tasaBCVActual = 40.0;
+      calcularConversion();
+    }
+  }
+
+  function calcularConversion() {
+    const monto = parseFloat(document.getElementById('monto').value) || 0;
+    const moneda = document.getElementById('moneda').value;
+    const divConv = document.getElementById('val-conversion');
+
+    if (!tasaBCVActual || monto <= 0) {
+      divConv.textContent = '';
+      return;
+    }
+
+    if (moneda === 'USD') {
+      const bs = (monto * tasaBCVActual).toFixed(2);
+      divConv.textContent = `Equivalente en Bolívares: Bs. ${bs}`;
+    } else {
+      const usd = (monto / tasaBCVActual).toFixed(2);
+      divConv.textContent = `Equivalente en Dólares: $ ${usd} USD`;
+    }
+  }
+
+  document.getElementById('monto').addEventListener('input', calcularConversion);
+  cargarTasaBCV();
+
+  async function actualizarConsultas(pacienteId) {
+    // Si se desea refrescar dinámicamente
+  }
+
+  async function guardarPago(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar');
+    btn.disabled = true;
+
+    const pagoId = "{{ pago.id if pago else '' }}";
+    const pacienteSelect = document.getElementById('paciente_id');
+    const pacienteId = pacienteSelect ? parseInt(pacienteSelect.value, 10) : parseInt("{{ paciente_id_sel or '' }}", 10);
+    const consultaVal = document.getElementById('consulta_id').value;
+
+    const data = {
+      paciente_id: pacienteId,
+      consulta_id: consultaVal ? parseInt(consultaVal, 10) : null,
+      monto: parseFloat(document.getElementById('monto').value),
+      moneda: document.getElementById('moneda').value,
+      metodo: document.getElementById('metodo').value,
+      estado: document.getElementById('estado').value,
+    };
+
+    const url = '/api/pagos';
+    const method = 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        const item = await res.json();
+        const pacId = "{{ paciente_id_sel or '' }}";
+        if (pacId) {
+          window.location.href = `/pacientes/${pacId}`;
+        } else {
+          window.location.href = '/ingresos';
+        }
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'No se pudo guardar el pago'));
+        btn.disabled = false;
+      }
+    } catch(err) {
+      alert('Error de red: ' + err.message);
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}

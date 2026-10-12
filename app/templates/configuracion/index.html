@@ -1,0 +1,659 @@
+{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+
+{% block content %}
+<div style="max-width:780px; margin:0 auto;">
+
+  <div style="margin-bottom:1.5rem;">
+    <h1 style="margin:0; font-size:1.6rem;">⚙️ Configuración</h1>
+    <p style="margin:0.25rem 0 0; color:var(--pico-muted-color); font-size:0.9rem;">
+      Ajustes del consultorio y preferencias
+    </p>
+  </div>
+
+  {# ── Datos del consultorio ── #}
+  <article id="seccion-consultorio">
+    <header style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+      <span>🏥</span>
+      <strong>Datos del consultorio</strong>
+    </header>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem 1.5rem;">
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Nombre</label>
+        <p id="consultorio-nombre" style="margin:0; font-weight:600;">{{ consultorio.nombre }}</p>
+      </div>
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Tipo</label>
+        <p id="consultorio-tipo" style="margin:0;">
+          {% if consultorio.tipo == "VETERINARIO" %}🐾 AltaPet (Veterinario)
+          {% else %}🏥 AltaMed (Médico){% endif %}
+        </p>
+      </div>
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Dirección</label>
+        <p id="consultorio-direccion" style="margin:0;">{{ consultorio.direccion or "—" }}</p>
+      </div>
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Teléfono</label>
+        <p id="consultorio-telefono" style="margin:0;">{{ consultorio.telefono or "—" }}</p>
+      </div>
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">RIF</label>
+        <p id="consultorio-rif" style="margin:0;">{{ consultorio.rif or "No registrado" }}</p>
+      </div>
+    </div>
+
+    {% if config %}
+    <hr style="margin:1rem 0;" />
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem 1.5rem; font-size:0.9rem;">
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Horario</label>
+        <p style="margin:0;">{{ config.horario_apertura }} – {{ config.horario_cierre }}</p>
+      </div>
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Duración cita</label>
+        <p style="margin:0;">{{ config.duracion_cita_default }} min</p>
+      </div>
+      <div>
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Moneda</label>
+        <p style="margin:0;">{{ config.moneda_default }}</p>
+      </div>
+    </div>
+    {% endif %}
+  </article>
+
+  {# ── Tasa BCV ── #}
+  <article id="seccion-tasa-bcv">
+    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span>🏦</span>
+        <strong>Tasa Oficial BCV</strong>
+      </div>
+      <button class="outline" style="font-size:0.8rem; padding:0.25rem 0.6rem; margin-bottom:0;"
+              id="btn-refrescar-tasa" onclick="refrescarTasaBCV()">
+        🔄 Actualizar tasa ahora
+      </button>
+    </header>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+      <div style="background:var(--pico-card-background-color); border:1px solid var(--pico-muted-border-color); border-radius:6px; padding:0.75rem 1rem;">
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Tasa del día actual</label>
+        <h3 id="tasa-bcv-display" style="margin:0.25rem 0 0; color:var(--pico-primary);">Cargando...</h3>
+        <small style="color:var(--pico-muted-color);">Bolívares por Dólar (USD)</small>
+      </div>
+      <div style="background:var(--pico-card-background-color); border:1px solid var(--pico-muted-border-color); border-radius:6px; padding:0.75rem 1rem;">
+        <label style="font-size:0.8rem; color:var(--pico-muted-color);">Tasa de respaldo configurada</label>
+        <h3 id="tasa-respaldo-display" style="margin:0.25rem 0 0;">{{ config.tasa_respaldo if config and config.tasa_respaldo else 40.0 }} Bs</h3>
+        <small style="color:var(--pico-muted-color);">Uso automático sin conexión</small>
+      </div>
+    </div>
+
+    {% if usuario.rol == "MEDICO" %}
+    <form id="form-tasa-respaldo" onsubmit="guardarTasaRespaldo(event)" style="display:flex; gap:0.75rem; align-items:flex-end; margin-bottom:0;">
+      <label style="margin-bottom:0; flex-grow:1;">
+        <span style="font-size:0.8rem;">Editar tasa de respaldo (Bs)</span>
+        <input type="number" step="0.01" min="1" id="input-tasa-respaldo" required
+               value="{{ config.tasa_respaldo if config and config.tasa_respaldo else 40.0 }}"
+               style="margin-bottom:0;" />
+      </label>
+      <button type="submit" class="outline" style="white-space:nowrap; margin-bottom:0; padding:0.5rem 1rem;">
+        Guardar respaldo
+      </button>
+    </form>
+    {% endif %}
+  </article>
+
+  {# ── Preferencias ── #}
+  <article id="seccion-preferencias">
+    <header style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+      <span>🎨</span>
+      <strong>Preferencias</strong>
+    </header>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <p style="margin:0; font-weight:500;">Tema de la interfaz</p>
+        <small style="color:var(--pico-muted-color);">Alterna entre modo claro y oscuro. La preferencia se guarda en tu navegador.</small>
+      </div>
+      <button id="btn-tema-config" class="outline" onclick="cambiarTema()" style="white-space:nowrap; margin-bottom:0;">
+        🌙 Cambiar tema
+      </button>
+    </div>
+  </article>
+
+  {# ── Usuarios (solo médico) ── #}
+  {% if usuario.rol == "MEDICO" %}
+  <article id="seccion-usuarios">
+    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span>👥</span>
+        <strong>Usuarios del consultorio</strong>
+      </div>
+      <button class="outline" style="font-size:0.85rem; margin-bottom:0; padding:0.3rem 0.75rem;"
+              id="btn-invitar-asistente"
+              onclick="alert('Función de invitación disponible próximamente')">
+        ＋ Invitar asistente
+      </button>
+    </header>
+
+    {% if usuarios %}
+    <table style="width:100%; font-size:0.9rem;" id="tabla-usuarios">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:0.4rem 0.5rem; color:var(--pico-muted-color); font-size:0.8rem;">Nombre</th>
+          <th style="text-align:left; padding:0.4rem 0.5rem; color:var(--pico-muted-color); font-size:0.8rem;">Email</th>
+          <th style="text-align:left; padding:0.4rem 0.5rem; color:var(--pico-muted-color); font-size:0.8rem;">Rol</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr style="border-top:1px solid var(--pico-muted-border-color);">
+          <td style="padding:0.45rem 0.5rem;">{{ u.nombre }}</td>
+          <td style="padding:0.45rem 0.5rem; color:var(--pico-muted-color);">{{ u.email }}</td>
+          <td style="padding:0.45rem 0.5rem;">
+            <span style="font-size:0.78rem; padding:0.15rem 0.5rem; border-radius:4px;
+              background:{% if u.rol == 'MEDICO' %}var(--pico-primary-focus){% else %}var(--pico-muted-border-color){% endif %}">
+              {{ u.rol }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--pico-muted-color); font-size:0.9rem; margin:0;">Sin otros usuarios registrados.</p>
+    {% endif %}
+  </article>
+  {% endif %}
+
+  {# ── Agenda Pública ── #}
+  {% if usuario.rol == 'MEDICO' %}
+  <article id="seccion-agenda-publica">
+    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span>🌐</span>
+        <strong>Agenda Pública para Pacientes</strong>
+      </div>
+      <span id="badge-agenda-publica" class="badge" style="font-size:0.8rem; padding:0.2rem 0.6rem; border-radius:9999px; background:#e2e8f0; color:#475569;">
+        Cargando...
+      </span>
+    </header>
+
+    <p style="color:var(--pico-muted-color); font-size:0.9rem; margin-bottom:1rem;">
+      Permite que los pacientes agenden citas directamente desde un enlace público sin login.
+    </p>
+
+    <form id="form-agenda-publica" onsubmit="guardarAgendaPublica(event)">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+        <input type="checkbox" id="check-agenda-activa" name="activa" role="switch">
+        <label for="check-agenda-activa" style="margin:0; font-weight:600; cursor:pointer;">
+          Activar enlace de reservas públicas
+        </label>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:1rem; margin-bottom:1rem;">
+        <label for="input-slug">
+          Identificador del enlace (slug)
+          <div style="display:flex; align-items:center; gap:0.4rem;">
+            <input type="text" id="input-slug" name="slug" required placeholder="mi-consultorio" style="margin-bottom:0;">
+          </div>
+          <small style="color:var(--pico-muted-color);">URL: /agenda/<span id="slug-preview">...</span></small>
+        </label>
+
+        <label for="select-duracion-publica">
+          Duración por cita (minutos)
+          <select id="select-duracion-publica" name="duracion_cita_publica" style="margin-bottom:0;">
+            <option value="15">15 minutos</option>
+            <option value="30">30 minutos</option>
+            <option value="45">45 minutos</option>
+            <option value="60">60 minutos</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:1rem; margin-bottom:1rem;">
+        <label for="input-telefono-publico">
+          Teléfono WhatsApp para avisos
+          <input type="tel" id="input-telefono-publico" name="telefono_whatsapp_publico" placeholder="Ej. 04141234567" style="margin-bottom:0;">
+          <small style="color:var(--pico-muted-color);">Número donde recibirás la confirmación del paciente.</small>
+        </label>
+
+        <label for="textarea-bio-publica">
+          Bio / Descripción pública (opcional)
+          <textarea id="textarea-bio-publica" name="bio_publica" rows="2" placeholder="Breve descripción o aviso para los pacientes..." style="margin-bottom:0;"></textarea>
+        </label>
+      </div>
+
+      <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; margin-top:1rem;">
+        <button type="submit" id="btn-guardar-agenda-publica" style="margin-bottom:0; font-size:0.9rem;">
+          💾 Guardar configuración
+        </button>
+        <button type="button" class="outline" id="btn-copiar-link" onclick="copiarLinkPublico()" style="margin-bottom:0; font-size:0.9rem;">
+          📋 Copiar link público
+        </button>
+        <a id="link-preview-agenda" href="#" target="_blank" role="button" class="outline secondary" style="margin-bottom:0; font-size:0.9rem; text-decoration:none;">
+          👁️ Ver preview
+        </a>
+      </div>
+    </form>
+  </article>
+  {% endif %}
+
+    {# ── Horario de atención (Público) ── #}
+  {% if usuario.rol == 'MEDICO' %}
+  <article id="seccion-horario-publico">
+    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span>⏰</span>
+        <strong>Horario de atención (Disponibilidad Pública)</strong>
+      </div>
+    </header>
+
+    <p style="color:var(--pico-muted-color); font-size:0.9rem; margin-bottom:1rem;">
+      Configura los días laborables, la franja horaria disponible, pausas y bloqueos para tu agenda pública.
+    </p>
+
+    <form id="form-horario-publico" onsubmit="guardarHorarioPublico(event)">
+      <fieldset style="margin-bottom:1rem;">
+        <legend style="font-weight:600; margin-bottom:0.5rem;">Días laborables</legend>
+        <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:center;">
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="1" style="margin:0;"> Lun
+          </label>
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="2" style="margin:0;"> Mar
+          </label>
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="3" style="margin:0;"> Mié
+          </label>
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="4" style="margin:0;"> Jue
+          </label>
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="5" style="margin:0;"> Vie
+          </label>
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="6" style="margin:0;"> Sáb
+          </label>
+          <label style="margin:0; display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer;">
+            <input type="checkbox" class="check-dia" value="0" style="margin:0;"> Dom
+          </label>
+        </div>
+      </fieldset>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-bottom:1rem;">
+        <label for="input-hora-apertura">
+          Hora apertura
+          <input type="time" id="input-hora-apertura" required value="08:00" style="margin-bottom:0;">
+        </label>
+
+        <label for="input-hora-cierre">
+          Hora cierre
+          <input type="time" id="input-hora-cierre" required value="17:00" style="margin-bottom:0;">
+        </label>
+      </div>
+
+      <div style="margin-bottom:1rem; padding:0.75rem; border:1px solid var(--pico-muted-border-color); border-radius:8px;">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+          <input type="checkbox" id="check-pausa" onchange="togglePausa()" style="margin:0;">
+          <label for="check-pausa" style="margin:0; font-weight:600; cursor:pointer;">Pausa mediodía</label>
+        </div>
+        <div id="contenedor-pausa" style="display:none; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-top:0.5rem;">
+          <label for="input-pausa-inicio">
+            Pausa inicio
+            <input type="time" id="input-pausa-inicio" value="12:00" style="margin-bottom:0;">
+          </label>
+          <label for="input-pausa-fin">
+            Pausa fin
+            <input type="time" id="input-pausa-fin" value="14:00" style="margin-bottom:0;">
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label for="input-limite-diario">
+          Límite diario de pacientes (0 = sin límite)
+          <input type="number" id="input-limite-diario" min="0" value="0" style="max-width:200px; margin-bottom:0;">
+        </label>
+      </div>
+
+      <fieldset style="margin-bottom:1rem; padding:0.75rem; border:1px solid var(--pico-muted-border-color); border-radius:8px;">
+        <legend style="font-weight:600; margin-bottom:0.5rem;">Días bloqueados</legend>
+        <p style="color:var(--pico-muted-color); font-size:0.85rem; margin-bottom:0.5rem;">
+          Fechas específicas en las que no habrá atención (ej: feriados, vacaciones).
+        </p>
+        <div id="lista-dias-bloqueados" style="display:flex; flex-direction:column; gap:0.4rem; margin-bottom:0.75rem;">
+        </div>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          <input type="date" id="input-nuevo-bloqueo" style="max-width:200px; margin-bottom:0;">
+          <button type="button" class="outline" onclick="anadirDiaBloqueado()" style="margin-bottom:0; font-size:0.85rem;">
+            + Añadir fecha
+          </button>
+        </div>
+      </fieldset>
+
+      <button type="submit" id="btn-guardar-horario" style="font-size:0.9rem;">
+        💾 Guardar horario
+      </button>
+    </form>
+  </article>
+  {% endif %}
+
+  {# ── Copias de seguridad ── #}
+  {% if usuario.rol == 'MEDICO' %}
+  <article id="seccion-datos">
+    <header style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+      <span>💾</span>
+      <strong>Copias de seguridad</strong>
+    </header>
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <p style="margin:0; font-weight:500;">Descargar backup de la base de datos</p>
+        <small style="color:var(--pico-muted-color);">
+          Se guarda una copia en <code>data/backups/</code> y se descarga automáticamente.
+        </small>
+      </div>
+      <a href="/api/configuracion/backup" role="button" class="outline"
+         id="btn-descargar-backup"
+         style="white-space:nowrap; margin-bottom:0; font-size:0.9rem;">
+        ⬇ Descargar backup
+      </a>
+    </div>
+    <blockquote style="margin:1rem 0 0; padding:0.75rem 1rem; border-left:4px solid #f59e0b;
+                        background:rgba(245,158,11,0.08); font-size:0.85rem;">
+      ⚠️ Guarda también el archivo <code>data/clave.key</code>.
+      Sin él, los datos cifrados no pueden recuperarse.
+    </blockquote>
+  </article>
+  {% endif %}
+
+  {# ── Sesión ── #}
+  <article id="seccion-sesion">
+    <header style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+      <span>🔐</span>
+      <strong>Sesión</strong>
+    </header>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <p style="margin:0;">Sesión activa como <strong>{{ usuario.nombre }}</strong></p>
+        <small style="color:var(--pico-muted-color);">{{ usuario.email }} · {{ usuario.rol }}</small>
+      </div>
+      <a href="/logout"
+         onclick="try { localStorage.removeItem('alta-token'); } catch(e){}"
+         role="button" class="outline contrast"
+         id="btn-logout-config"
+         style="white-space:nowrap; margin-bottom:0; font-size:0.9rem;">
+        Cerrar sesión
+      </a>
+    </div>
+  </article>
+
+</div>
+
+<script>
+  async function cargarTasaBCV() {
+    try {
+      const res = await fetch('/api/configuracion/tasa-bcv');
+      if (res.ok) {
+        const d = await res.json();
+        const display = document.getElementById('tasa-bcv-display');
+        if (display) display.textContent = (d.tasa_bcv || d.tasa_respaldo || 0).toFixed(2) + ' Bs';
+      }
+    } catch(e) {
+      console.warn('Error al cargar tasa BCV:', e);
+    }
+  }
+
+  async function refrescarTasaBCV() {
+    const btn = document.getElementById('btn-refrescar-tasa');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/configuracion/tasa-bcv/refrescar', { method: 'POST' });
+      if (res.ok) {
+        const d = await res.json();
+        const display = document.getElementById('tasa-bcv-display');
+        if (display) display.textContent = (d.tasa_bcv || 0).toFixed(2) + ' Bs';
+        alert('Tasa BCV actualizada: ' + (d.tasa_bcv || 0).toFixed(2) + ' Bs');
+      } else {
+        alert('No se pudo conectar con el BCV en este momento. Se mantiene la tasa actual.');
+      }
+    } catch(e) {
+      alert('Error de conexión al consultar el BCV');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function guardarTasaRespaldo(e) {
+    e.preventDefault();
+    const val = parseFloat(document.getElementById('input-tasa-respaldo').value);
+    if (!val || val <= 0) return alert('Ingrese un valor válido');
+
+    try {
+      const res = await fetch('/api/configuracion/tasa-respaldo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasa_respaldo: val })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        document.getElementById('tasa-respaldo-display').textContent = d.tasa_respaldo.toFixed(2) + ' Bs';
+        alert('Tasa de respaldo guardada');
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'No se pudo guardar'));
+      }
+    } catch(e) {
+      alert('Error de red al guardar tasa de respaldo');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarTasaBCV();
+    cargarAgendaPublica();
+  });
+
+  async function cargarAgendaPublica() {
+    try {
+      const res = await fetch('/api/consultorio/agenda-publica');
+      if (!res.ok) return;
+      const d = await res.json();
+      
+      const check = document.getElementById('check-agenda-activa');
+      const slugInput = document.getElementById('input-slug');
+      const duracion = document.getElementById('select-duracion-publica');
+      const tel = document.getElementById('input-telefono-publico');
+      const bio = document.getElementById('textarea-bio-publica');
+      const badge = document.getElementById('badge-agenda-publica');
+      const previewSpan = document.getElementById('slug-preview');
+      const linkPreview = document.getElementById('link-preview-agenda');
+
+      if (check) check.checked = !!d.activa;
+      if (slugInput) slugInput.value = d.slug || '';
+      if (previewSpan) previewSpan.textContent = d.slug || '';
+      if (duracion) duracion.value = d.duracion_cita_publica || 30;
+      if (tel) tel.value = d.telefono_whatsapp_publico || '';
+      if (bio) bio.value = d.bio_publica || '';
+
+      if (linkPreview) {
+        linkPreview.href = `/agenda/${d.slug || ''}`;
+      }
+
+      if (badge) {
+        if (d.activa) {
+          badge.textContent = '● Activa';
+          badge.style.background = '#dcfce7';
+          badge.style.color = '#15803d';
+        } else {
+          badge.textContent = '○ Inactiva';
+          badge.style.background = '#f1f5f9';
+          badge.style.color = '#64748b';
+        }
+      }
+
+      if (slugInput) {
+        slugInput.addEventListener('input', (e) => {
+          if (previewSpan) previewSpan.textContent = e.target.value.trim();
+          if (linkPreview) linkPreview.href = `/agenda/${e.target.value.trim()}`;
+        });
+      }
+    } catch(e) {
+      console.warn('Error al cargar agenda pública:', e);
+    }
+  }
+
+    let diasBloqueadosActuales = [];
+
+  function togglePausa() {
+    const chk = document.getElementById('check-pausa');
+    const cont = document.getElementById('contenedor-pausa');
+    if (cont) cont.style.display = chk.checked ? 'grid' : 'none';
+  }
+
+  function renderizarDiasBloqueados() {
+    const cont = document.getElementById('lista-dias-bloqueados');
+    if (!cont) return;
+    cont.innerHTML = '';
+    if (diasBloqueadosActuales.length === 0) {
+      cont.innerHTML = '<span style="color:var(--pico-muted-color); font-size:0.85rem;">No hay fechas bloqueadas.</span>';
+      return;
+    }
+    diasBloqueadosActuales.forEach((f, idx) => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex; align-items:center; gap:0.5rem; background:var(--pico-muted-border-color); padding:0.25rem 0.6rem; border-radius:6px; width:fit-content; font-size:0.85rem;';
+      item.innerHTML = `<span>📅 ${f}</span> <button type="button" onclick="eliminarDiaBloqueado(${idx})" style="background:none; border:none; color:#dc2626; padding:0; margin:0; cursor:pointer; font-weight:bold;">&times;</button>`;
+      cont.appendChild(item);
+    });
+  }
+
+  function anadirDiaBloqueado() {
+    const input = document.getElementById('input-nuevo-bloqueo');
+    const val = input ? input.value.trim() : '';
+    if (!val) return;
+    if (!diasBloqueadosActuales.includes(val)) {
+      diasBloqueadosActuales.push(val);
+      diasBloqueadosActuales.sort();
+      renderizarDiasBloqueados();
+    }
+    if (input) input.value = '';
+  }
+
+  function eliminarDiaBloqueado(idx) {
+    diasBloqueadosActuales.splice(idx, 1);
+    renderizarDiasBloqueados();
+  }
+
+  async function cargarHorarioPublico() {
+    try {
+      const res = await fetch('/api/consultorio/horario-publico');
+      if (!res.ok) return;
+      const d = await res.json();
+      const diasPermitidos = d.dias || [1, 2, 3, 4, 5];
+      document.querySelectorAll('.check-dia').forEach(chk => {
+        chk.checked = diasPermitidos.includes(parseInt(chk.value));
+      });
+
+      if (d.hora_apertura) document.getElementById('input-hora-apertura').value = d.hora_apertura;
+      if (d.hora_cierre) document.getElementById('input-hora-cierre').value = d.hora_cierre;
+
+      const chkPausa = document.getElementById('check-pausa');
+      if (d.pausa_inicio && d.pausa_fin) {
+        chkPausa.checked = true;
+        document.getElementById('input-pausa-inicio').value = d.pausa_inicio;
+        document.getElementById('input-pausa-fin').value = d.pausa_fin;
+      } else {
+        chkPausa.checked = false;
+      }
+      togglePausa();
+
+      document.getElementById('input-limite-diario').value = d.limite_diario || 0;
+      diasBloqueadosActuales = d.dias_bloqueados || [];
+      renderizarDiasBloqueados();
+    } catch(e) {
+      console.warn('Error al cargar horario público:', e);
+    }
+  }
+
+  async function guardarHorarioPublico(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar-horario');
+    if (btn) btn.disabled = true;
+
+    const dias = Array.from(document.querySelectorAll('.check-dia:checked')).map(c => parseInt(c.value));
+    const tienePausa = document.getElementById('check-pausa').checked;
+    const payload = {
+      dias: dias,
+      hora_apertura: document.getElementById('input-hora-apertura').value.trim(),
+      hora_cierre: document.getElementById('input-hora-cierre').value.trim(),
+      pausa_inicio: tienePausa ? document.getElementById('input-pausa-inicio').value.trim() : null,
+      pausa_fin: tienePausa ? document.getElementById('input-pausa-fin').value.trim() : null,
+      limite_diario: parseInt(document.getElementById('input-limite-diario').value || 0),
+      dias_bloqueados: diasBloqueadosActuales,
+    };
+
+    try {
+      const res = await fetch('/api/consultorio/horario-publico', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        alert('Horario público guardado exitosamente.');
+        await cargarHorarioPublico();
+      } else {
+        alert('Error: ' + (d.detail || 'No se pudo guardar el horario'));
+      }
+    } catch(err) {
+      alert('Error de red al guardar el horario.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function guardarAgendaPublica(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar-agenda-publica');
+    if (btn) btn.disabled = true;
+
+    const payload = {
+      activa: document.getElementById('check-agenda-activa').checked,
+      slug: document.getElementById('input-slug').value.trim(),
+      duracion_cita_publica: parseInt(document.getElementById('select-duracion-publica').value),
+      telefono_whatsapp_publico: document.getElementById('input-telefono-publico').value.trim(),
+      bio_publica: document.getElementById('textarea-bio-publica').value.trim(),
+    };
+
+    try {
+      const res = await fetch('/api/consultorio/agenda-publica', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const d = await res.json();
+      if (res.ok) {
+        alert('Configuración de agenda pública guardada exitosamente.');
+        await cargarAgendaPublica();
+    await cargarHorarioPublico();
+      } else {
+        alert('Error: ' + (d.detail || 'No se pudo guardar la configuración'));
+      }
+    } catch(err) {
+      alert('Error de red al guardar configuración.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function copiarLinkPublico() {
+    const slug = document.getElementById('input-slug').value.trim();
+    if (!slug) return alert('No hay slug definido');
+    const url = `${window.location.origin}/agenda/${slug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Enlace copiado al portapapeles:\n' + url);
+    }).catch(() => {
+      prompt('Copia el siguiente enlace:', url);
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Editar cita" if cita else "Nueva cita" }}{% endblock %}
+
+{% block content %}
+<div style="max-width:560px; margin:0 auto;">
+  <h2>{{ "Editar cita" if cita else "Nueva cita" }}</h2>
+
+  {% if error %}
+  <p style="color:var(--pico-del-color);">{{ error }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ '/agenda/' + cita.id|string + '/editar' if cita else '/agenda/nueva' }}">
+
+    <!-- Selector de paciente -->
+    <label for="paciente_q">Paciente</label>
+    <input type="text" id="paciente_q" placeholder="Buscar por nombre o cédula…"
+           oninput="buscarPaciente(this.value)"
+           value="{{ cita.paciente_nombre if cita else '' }}"
+           autocomplete="off" required />
+    <input type="hidden" id="paciente_id" name="paciente_id"
+           value="{{ cita.paciente_id if cita else '' }}" required />
+    <ul id="paciente-sugerencias"
+        style="list-style:none; padding:0; margin:0; border:1px solid var(--pico-muted-border-color);
+               border-radius:4px; display:none; max-height:180px; overflow-y:auto;
+               background:var(--pico-card-background-color);"></ul>
+
+    <!-- Fecha y hora -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+      <label for="fecha">
+        Fecha
+        <input type="date" id="fecha" name="fecha"
+               value="{{ cita.fecha_hora.strftime('%Y-%m-%d') if cita else '' }}" required />
+      </label>
+      <label for="hora">
+        Hora
+        <input type="time" id="hora" name="hora"
+               value="{{ cita.fecha_hora.strftime('%H:%M') if cita else '' }}" required />
+      </label>
+    </div>
+
+    <!-- Duración -->
+    <label for="duracion_min">
+      Duración
+      <select id="duracion_min" name="duracion_min">
+        {% for mins in [15, 30, 45, 60] %}
+        <option value="{{ mins }}"
+          {% if cita and cita.duracion_min == mins %}selected{% endif %}>
+          {{ mins }} min
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <!-- Motivo -->
+    <label for="motivo">
+      Motivo
+      <textarea id="motivo" name="motivo" rows="3"
+                placeholder="Consulta general, control, urgencia…">{{ cita.motivo if cita else '' }}</textarea>
+    </label>
+
+    <!-- Estado (solo edición) -->
+    {% if cita %}
+    <label for="estado">
+      Estado
+      <select id="estado" name="estado">
+        {% for est in ['pendiente', 'confirmada', 'completada', 'no_show', 'cancelada'] %}
+        <option value="{{ est }}" {% if cita.estado == est %}selected{% endif %}>
+          {{ est | capitalize }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+
+    <div style="display:flex; gap:1rem; margin-top:1rem; align-items:center; flex-wrap:wrap;">
+      <button type="submit">Guardar</button>
+      {% if cita %}
+      <button type="button" class="outline" onclick="enviarRecordatorioWhatsApp({{ cita.id }})" style="margin-bottom:0;">
+        💬 Recordar por WhatsApp
+      </button>
+      {% endif %}
+      <a href="/agenda" role="button" class="secondary outline">Cancelar</a>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  async function enviarRecordatorioWhatsApp(citaId) {
+    const token = localStorage.getItem('alta-token') || '';
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const r = await fetch(`/api/citas/${citaId}/recordatorio`, { headers });
+      const data = await r.json();
+      if (r.ok && data.enlace) {
+        window.open(data.enlace, '_blank');
+      } else {
+        alert(data.detail || 'No se pudo generar el enlace de WhatsApp');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión al generar recordatorio');
+    }
+  }
+  async function buscarPaciente(q) {
+    const ul = document.getElementById('paciente-sugerencias');
+    if (q.length < 2) { ul.style.display = 'none'; return; }
+
+    const token = localStorage.getItem('alta-token') || '';
+    const resp = await fetch(`/api/pacientes?q=${encodeURIComponent(q)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) { ul.style.display = 'none'; return; }
+
+    const lista = await resp.json();
+    ul.innerHTML = '';
+    if (!lista.length) { ul.style.display = 'none'; return; }
+
+    lista.forEach(p => {
+      const li = document.createElement('li');
+      li.textContent = `${p.nombre}${p.cedula ? ' — ' + p.cedula : ''}`;
+      li.style.cssText = 'padding:0.5rem 0.75rem; cursor:pointer;';
+      li.onmouseenter = () => li.style.background = 'var(--pico-primary-focus)';
+      li.onmouseleave = () => li.style.background = '';
+      li.onclick = () => {
+        document.getElementById('paciente_q').value = p.nombre;
+        document.getElementById('paciente_id').value = p.id;
+        ul.style.display = 'none';
+      };
+      ul.appendChild(li);
+    });
+    ul.style.display = 'block';
+  }
+
+  // Cerrar sugerencias al hacer clic fuera
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#paciente_q') && !e.target.closest('#paciente-sugerencias')) {
+      document.getElementById('paciente-sugerencias').style.display = 'none';
+    }
+  });
+</script>
+{% endblock %}

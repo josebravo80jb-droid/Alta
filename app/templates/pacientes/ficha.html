@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Ficha de {{ paciente.nombre }} — Alta{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+  <a href="/pacientes" style="text-decoration:none; font-size:0.9rem;">← Volver a pacientes</a>
+</div>
+
+<!-- Header Ficha -->
+<article style="margin-bottom: 2rem;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <h2 style="margin:0;">{{ paciente.nombre }}</h2>
+        {# AltaPet: badge de tipo visible (MASCOTA=naranja). AltaMed: no mostrar badge "HUMANO" (redundante). #}
+        {% if paciente.tipo == 'MASCOTA' %}
+        <span style="font-size:0.8rem; padding:0.2rem 0.6rem; border-radius:4px;
+                     background-color:#fdf0d5; color:#7c4700; font-weight:600;">
+          {{ paciente.tipo }}
+        </span>
+        {% endif %}
+      </div>
+      <p style="margin:0.25rem 0 0 0; color:var(--pico-muted-color);">
+        {% if paciente.tipo == 'HUMANO' %}
+          Cédula: {{ paciente.cedula or 'No registrada' }}
+        {% else %}
+          Especie: {{ paciente.especie or 'No especificada' }} {% if paciente.raza %}· Raza: {{ paciente.raza }}{% endif %}
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <a href="/pacientes/{{ paciente.id }}/editar" role="button" class="secondary">Editar</a>
+      <a href="/agenda/nueva?paciente_id={{ paciente.id }}" role="button">+ Nueva cita</a>
+      {% if usuario.rol == 'MEDICO' %}
+        <a href="/consultas/nueva?paciente_id={{ paciente.id }}" role="button" class="outline">+ Nueva consulta</a>
+      {% endif %}
+      <button type="button" class="contrast outline" onclick="eliminarPaciente({{ paciente.id }})">Eliminar</button>
+    </div>
+  </div>
+</article>
+
+<!-- Cuadrícula de Información -->
+<div class="grid" style="margin-bottom: 2rem;">
+  <!-- Contacto & Datos Generales -->
+  <article>
+    <header><strong>Contacto y Registro</strong></header>
+    <p><strong>Teléfono:</strong> {{ paciente.telefono or '—' }}</p>
+    <p><strong>Email:</strong> {{ paciente.email or '—' }}</p>
+    {% if paciente.fecha_nacimiento %}
+      <p><strong>Fecha de nacimiento:</strong> {{ paciente.fecha_nacimiento.strftime('%d/%m/%Y') }}</p>
+    {% endif %}
+    {% if paciente.creado_en %}
+      <p style="margin-bottom:0;"><small style="color:var(--pico-muted-color);">Registrado el {{ paciente.creado_en.strftime('%d/%m/%Y') }}</small></p>
+    {% endif %}
+  </article>
+
+  <!-- Datos Médicos / Específicos -->
+  <article>
+    <header><strong>Información Médica</strong></header>
+    <p><strong>Alergias:</strong> {{ paciente.alergias or 'Ninguna registrada' }}</p>
+    <p><strong>Notas generales:</strong> {{ paciente.notas_generales or 'Sin notas' }}</p>
+    {% if paciente.tipo == 'MASCOTA' %}
+      <hr style="margin: 0.75rem 0;" />
+      <p><strong>Peso:</strong> {{ paciente.peso_kg }} kg{% if not paciente.peso_kg %}—{% endif %}</p>
+      <p style="margin-bottom:0;"><strong>Microchip:</strong> {{ paciente.microchip or 'No tiene' }}</p>
+    {% endif %}
+  </article>
+
+  <!-- Si es mascota: Dueño -->
+  {% if paciente.tipo == 'MASCOTA' and dueno %}
+  <article>
+    <header><strong>Datos del Propietario</strong></header>
+    <p><strong>Nombre:</strong> {{ dueno.nombre }}</p>
+    <p><strong>Teléfono:</strong> {{ dueno.telefono }}</p>
+    <p><strong>Email:</strong> {{ dueno.email or '—' }}</p>
+    <p style="margin-bottom:0;"><strong>Dirección:</strong> {{ dueno.direccion or '—' }}</p>
+  </article>
+  {% endif %}
+</div>
+
+<!-- Pestañas de Historial -->
+<article>
+  <header style="display:flex; gap:1rem; border-bottom:1px solid var(--pico-muted-border-color); padding-bottom:0.5rem; margin-bottom:1rem;">
+    <button type="button" class="tab-btn" id="btn-tab-citas" onclick="verTab('citas')" style="padding:0.3rem 0.8rem; font-size:0.9rem;">
+      Citas ({{ historial.citas | length }})
+    </button>
+    <button type="button" class="tab-btn outline secondary" id="btn-tab-consultas" onclick="verTab('consultas')" style="padding:0.3rem 0.8rem; font-size:0.9rem;">
+      Consultas ({{ historial.consultas | length }})
+    </button>
+    <button type="button" class="tab-btn outline secondary" id="btn-tab-pagos" onclick="verTab('pagos')" style="padding:0.3rem 0.8rem; font-size:0.9rem;">
+      Pagos ({{ historial.pagos | length }})
+    </button>
+  </header>
+
+  <!-- Contenido Tab Citas -->
+  <div id="tab-citas">
+    {% if historial.citas %}
+      <figure>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha y Hora</th>
+              <th>Motivo</th>
+              <th>Duración</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in historial.citas %}
+            <tr>
+              <td>{{ c.fecha_hora.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td>{{ c.motivo or 'Consulta general' }}</td>
+              <td>{{ c.duracion_min }} min</td>
+              <td><span style="font-weight:600;">{{ c.estado }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </figure>
+    {% else %}
+      <p style="color:var(--pico-muted-color); text-align:center; padding:1.5rem 0;">No hay citas registradas para este paciente.</p>
+    {% endif %}
+  </div>
+
+  <!-- Contenido Tab Consultas -->
+  <div id="tab-consultas" style="display:none;">
+    {% if usuario.rol == 'MEDICO' %}
+      <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+        <a href="/consultas/nueva?paciente_id={{ paciente.id }}" role="button" class="outline" style="font-size:0.85rem; padding:0.35rem 0.8rem;">+ Nueva consulta</a>
+      </div>
+    {% endif %}
+
+    {% if historial.consultas %}
+      <figure>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Motivo</th>
+              <th>Próxima cita</th>
+              {% if usuario.rol == 'MEDICO' %}
+                <th style="text-align:right;">Acción</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for con in historial.consultas %}
+            <tr>
+              <td>
+                {% if usuario.rol == 'MEDICO' %}
+                  <a href="/consultas/{{ con.id }}" style="font-weight:600;">{{ con.fecha.strftime('%d/%m/%Y') }}</a>
+                {% else %}
+                  {{ con.fecha.strftime('%d/%m/%Y') }}
+                {% endif %}
+              </td>
+              <td>{{ con.motivo }}</td>
+              <td>
+                {% if con.proxima_cita %}
+                  {{ con.proxima_cita.strftime('%d/%m/%Y') }}
+                {% else %}
+                  <span style="color:var(--pico-muted-color);">—</span>
+                {% endif %}
+              </td>
+              {% if usuario.rol == 'MEDICO' %}
+                <td style="text-align:right;">
+                  <a href="/consultas/{{ con.id }}" role="button" class="outline" style="font-size:0.8rem; padding:0.25rem 0.6rem;">Ver detalle</a>
+                </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </figure>
+    {% else %}
+      <p style="color:var(--pico-muted-color); text-align:center; padding:1.5rem 0;">Sin consultas registradas.</p>
+    {% endif %}
+  </div>
+
+  <!-- Contenido Tab Pagos -->
+  <div id="tab-pagos" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
+      <div>
+        {% set total_paciente = namespace(monto=0.0) %}
+        {% for pg in historial.pagos %}
+          {% if pg.estado == 'pagado' %}
+            {% set total_paciente.monto = total_paciente.monto + pg.monto %}
+          {% endif %}
+        {% endfor %}
+        <strong>Total Pagado:</strong> <span style="color:var(--pico-primary); font-size:1.1rem; font-weight:bold;">${{ "%.2f"|format(total_paciente.monto) }}</span>
+      </div>
+      <a href="/ingresos/nuevo?paciente_id={{ paciente.id }}" role="button" class="outline" style="font-size:0.85rem; padding:0.35rem 0.8rem;">
+        + Registrar pago
+      </a>
+    </div>
+
+    {% if historial.pagos %}
+      <figure>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Monto</th>
+              <th>Método</th>
+              <th>Estado</th>
+              <th style="text-align:right;">Recibo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pg in historial.pagos %}
+            <tr>
+              <td>{{ pg.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td style="font-weight:600;">{{ pg.moneda }} {{ "%.2f"|format(pg.monto) }}</td>
+              <td><span style="text-transform:capitalize;">{{ pg.metodo or 'Efectivo' }}</span></td>
+              <td>
+                <span style="font-size:0.8rem; padding:0.2rem 0.5rem; border-radius:4px;
+                             background-color:{% if pg.estado == 'pagado' %}#e2f0d9; color:#27501b;{% else %}#fbeae8; color:#a61c1c;{% endif %} font-weight:600;">
+                  {{ pg.estado | capitalize }}
+                </span>
+              </td>
+              <td style="text-align:right;">
+                <a href="/api/pagos/{{ pg.id }}/recibo" target="_blank" role="button" class="outline" style="font-size:0.8rem; padding:0.25rem 0.6rem;">
+                  PDF
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </figure>
+    {% else %}
+      <p style="color:var(--pico-muted-color); text-align:center; padding:1.5rem 0;">No hay pagos registrados para este paciente.</p>
+    {% endif %}
+  </div>
+</article>
+
+<script>
+  function verTab(tab) {
+    ['citas', 'consultas', 'pagos'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = (t === tab) ? '' : 'none';
+      const btn = document.getElementById('btn-tab-' + t);
+      if (t === tab) {
+        btn.classList.remove('outline', 'secondary');
+      } else {
+        btn.classList.add('outline', 'secondary');
+      }
+    });
+  }
+
+  async function eliminarPaciente(id) {
+    if (!confirm('¿Estás seguro de eliminar este paciente? Si tiene citas o consultas asociadas, se archivará.')) return;
+    try {
+      const res = await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        window.location.href = '/pacientes';
+      } else {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'No se pudo eliminar'));
+      }
+    } catch(e) {
+      alert('Error de red: ' + e.message);
+    }
+  }
+</script>
+{% endblock %}
